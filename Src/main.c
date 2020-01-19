@@ -115,7 +115,7 @@ double motor_temp_r;                                 // Motor temperature?
 //==================== MAIN var =====================
 volatile unsigned int count = 0;
 static void init_CAN1_BGR(void);                     // Initiating the CAN module?
-#if 0                                                // Some check for Rasberry?
+#if 0                                                // Original conversion code for the tourqe request
 /*aviciis code BEGIN*/
 uint32_t val;
 uint32_t output;
@@ -193,8 +193,8 @@ int main(void)
 	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD2_Pin , GPIO_PIN_RESET);  // Not sure why is it here?
 
   //=================== CAN =========================
-      __HAL_CAN_ENABLE_IT(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);        // Enable CAN1 interrupts.
-      HAL_CAN_Start( &hcan1 );                                        // Start the CAN module.
+  __HAL_CAN_ENABLE_IT(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);        // Enable CAN1 interrupts.
+  HAL_CAN_Start( &hcan1 );                                        // Start the CAN module.
   #if 1
   // standart CAN message by elik - Open decelarations to understand meanings
       CAN1->sTxMailBox[1U].TIR =  ((  0x80   << 21U) |  0);           // Set up the Id
