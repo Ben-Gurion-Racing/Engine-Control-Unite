@@ -1,40 +1,56 @@
+/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file    stm32f7xx_it.c
   * @brief   Interrupt Service Routines.
   ******************************************************************************
+  * @attention
   *
-  * COPYRIGHT(c) 2019 STMicroelectronics
+  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
+  * All rights reserved.</center></h2>
   *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
   *
   ******************************************************************************
   */
-/* Includes ------------------------------------------------------------------*/
-#include "stm32f7xx_hal.h"
-#include "stm32f7xx.h"
-#include "stm32f7xx_it.h"
+/* USER CODE END Header */
 
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "stm32f7xx_it.h"
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+/* USER CODE END Includes */
+  
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN TD */
+
+/* USER CODE END TD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+ 
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+/* USER CODE BEGIN PFP */
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 #define MINIMUM_VAL 709.0 //0x000 //480.0
 #define MAXIMUM_VAL  2300.0//2481.0 //0xFFF //4095.0
@@ -95,14 +111,16 @@ int msec_5 = 0;
 /* External variables --------------------------------------------------------*/
 extern ETH_HandleTypeDef heth;
 extern CAN_HandleTypeDef hcan1;
+/* USER CODE BEGIN EV */
+
+/* USER CODE END EV */
 
 /******************************************************************************/
-/*            Cortex-M7 Processor Interruption and Exception Handlers         */ 
+/*           Cortex-M7 Processor Interruption and Exception Handlers          */ 
 /******************************************************************************/
-
 /**
-* @brief This function handles System tick timer.
-*/
+  * @brief This function handles System tick timer.
+  */
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
@@ -122,7 +140,6 @@ void SysTick_Handler(void)
 
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
-  HAL_SYSTICK_IRQHandler();
   /* USER CODE BEGIN SysTick_IRQn 1 */
 
 
@@ -139,8 +156,8 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-* @brief This function handles CAN1 TX interrupts.
-*/
+  * @brief This function handles CAN1 TX interrupts.
+  */
 void CAN1_TX_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_TX_IRQn 0 */
@@ -154,71 +171,72 @@ void CAN1_TX_IRQHandler(void)
 }
 
 /**
-* @brief This function handles CAN1 RX0 interrupts.
-*/
+  * @brief This function handles CAN1 RX0 interrupts.
+  */
 void CAN1_RX0_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_RX0_IRQn 0 */
-	 uint32_t errorcode = HAL_CAN_ERROR_NONE;
-	  uint32_t interrupts = READ_REG(CAN1->IER);
-	  uint32_t msrflags = READ_REG(CAN1->MSR);
-	  uint32_t tsrflags = READ_REG(CAN1->TSR);
-	  uint32_t rf0rflags = READ_REG(CAN1->RF0R);
-	  uint32_t rf1rflags = READ_REG(CAN1->RF1R);
-	  uint32_t esrflags = READ_REG(CAN1->ESR);
+	uint32_t errorcode = HAL_CAN_ERROR_NONE;
+	uint32_t interrupts = READ_REG(CAN1->IER);
+	uint32_t msrflags = READ_REG(CAN1->MSR);
+	uint32_t tsrflags = READ_REG(CAN1->TSR);
+	uint32_t rf0rflags = READ_REG(CAN1->RF0R);
+	uint32_t rf1rflags = READ_REG(CAN1->RF1R);
+	uint32_t esrflags = READ_REG(CAN1->ESR);
 
-	  /* Receive FIFO 0 message pending interrupt management *********************/
-	  if ((interrupts & CAN_IT_RX_FIFO0_MSG_PENDING) != 0U)
-	  {
-	    /* Check if message is still pending */
-	    if ((CAN1->RF0R & CAN_RF0R_FMP0) != 0U)
-	    {
-	      CAN_1_Rx_ide = (uint8_t)0x04U & CAN1->sFIFOMailBox[0].RIR;
-	      if ( CAN_1_Rx_ide == CAN_ID_STD )
-	      {
-	        CAN_1_Rx_eid = 0x00;
-	        CAN_1_Rx_sid = 0x000007FFU & (CAN1->sFIFOMailBox[0].RIR >> 21U);
-	      }
-	      else
-	      {
-	        CAN_1_Rx_sid = 0x00;
-	        CAN_1_Rx_eid = 0x1FFFFFFFU & (CAN1->sFIFOMailBox[0].RIR >> 3U);
-	      }
-	      switch(CAN_1_Rx_sid) {
 
-	         case 0x401  :
+  /* Receive FIFO 0 message pending interrupt management *********************/
+  if ((interrupts & CAN_IT_RX_FIFO0_MSG_PENDING) != 0U)
+  {
+	/* Check if message is still pending */
+	if ((CAN1->RF0R & CAN_RF0R_FMP0) != 0U)
+	{
 
-	        	 	 //TODO elik
+		CAN_1_Rx_ide = (uint8_t)0x04U & CAN1->sFIFOMailBox[0].RIR;
+		if ( CAN_1_Rx_ide == CAN_ID_STD )
+		{
+			CAN_1_Rx_eid = 0x00;
+			CAN_1_Rx_sid = 0x000007FFU & (CAN1->sFIFOMailBox[0].RIR >> 21U);
+		}
+		else
+		{
+			CAN_1_Rx_sid = 0x00;
+			CAN_1_Rx_eid = 0x1FFFFFFFU & (CAN1->sFIFOMailBox[0].RIR >> 3U);
+		}
+		switch(CAN_1_Rx_sid)
+		{
+			case 0x401  :
 
-	            break;
-	         case 0x421  :
+				 //TODO elik
 
+			break;
+			case 0x421 :	//Answer for the 0x420 message (getting samples of the pedals sensors from the pedals unite)
 
 				CAN_1_Rx_rtr = (uint8_t)0x02U & CAN1->sFIFOMailBox[0].RIR;
 				CAN_1_Rx_dlc = (uint8_t)0x0FU & CAN1->sFIFOMailBox[0].RDTR;
 				CAN_1_Rx_fmi = (uint8_t)0xFFU & (CAN1->sFIFOMailBox[0].RDTR >> 8U);
 
-				CAN_1_RecData[0] = CAN1->sFIFOMailBox[0].RDLR;
-				CAN_1_RecData[1] = CAN1->sFIFOMailBox[0].RDLR >> (8U);
-				CAN_1_RecData[2] = CAN1->sFIFOMailBox[0].RDLR >> (16U);
-				CAN_1_RecData[3] = CAN1->sFIFOMailBox[0].RDLR >> (24U);
-				CAN_1_RecData[4] = CAN1->sFIFOMailBox[0].RDHR;
-				CAN_1_RecData[5] = CAN1->sFIFOMailBox[0].RDHR >> (8U);
-				CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);
-				CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);
+				CAN_1_RecData[0] = CAN1->sFIFOMailBox[0].RDLR;			//APPS_0 LSB
+				CAN_1_RecData[1] = CAN1->sFIFOMailBox[0].RDLR >> (8U);	//APPS_0 MSB
+				CAN_1_RecData[2] = CAN1->sFIFOMailBox[0].RDLR >> (16U);	//APPS_1 LSB
+				CAN_1_RecData[3] = CAN1->sFIFOMailBox[0].RDLR >> (24U);	//APPS_1 MSB
+				CAN_1_RecData[4] = CAN1->sFIFOMailBox[0].RDHR;			//APPS_2 LSB
+				CAN_1_RecData[5] = CAN1->sFIFOMailBox[0].RDHR >> (8U);	//APPS_2 MSB
+				CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);	//BPPS_Signal
+				CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);	//valid_Apps_Bpps
 
 				if( CAN_1_RecData[7] == 0xFF){ //cheak_if_pedal_valid
 
-		    		/* Set up the Id */
-		    		CAN1->sTxMailBox[2U].TIR =  ((  0x400   << 21U) |  0);
-		    		/* Set up the DLC */
-		    		CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
-		    		CAN1->sTxMailBox[2U].TDTR |= 0x00000000U;
-		    		/* Set up the data field */
-		    		//CAN1->sTxMailBox[0U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 );
-		    		//CAN1->sTxMailBox[0U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A );
-		    		/* Request transmission */
-		    		CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
+					/* Set up the Id */
+					CAN1->sTxMailBox[2U].TIR =  ((  0x400   << 21U) |  0);
+					/* Set up the DLC */
+					CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
+					CAN1->sTxMailBox[2U].TDTR |= 0x00000000U;
+					/* Set up the data field */
+					//CAN1->sTxMailBox[0U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 );
+					//CAN1->sTxMailBox[0U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A );
+					/* Request transmission */
+					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
 				}
 				else{
 					Keep_420[1] = 0x00;
@@ -234,70 +252,77 @@ void CAN1_RX0_IRQHandler(void)
 						brak_flag = 1;
 					}
 #if 0
-		    		CAN1->sTxMailBox[2U].TIR =  ((  0x60   << 21U) |  0);
-		    		/* Set up the DLC */
-		    		CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
-		    		CAN1->sTxMailBox[2U].TDTR |= 0x00000001U;
-		    		/* Set up the data field */
-		    		CAN1->sTxMailBox[2U].TDLR =  output;
-		    		CAN1->sTxMailBox[2U].TDHR =  val;
-		    		/* Request transmission */
-		    		CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
+					CAN1->sTxMailBox[2U].TIR =  ((  0x60   << 21U) |  0);
+					/* Set up the DLC */
+					CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
+					CAN1->sTxMailBox[2U].TDTR |= 0x00000001U;
+					/* Set up the data field */
+					CAN1->sTxMailBox[2U].TDLR =  output;
+					CAN1->sTxMailBox[2U].TDHR =  val;
+					/* Request transmission */
+					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
 #endif
 
 
-	     		//push pedal to array[10];
-	     		//get the median_of _the_array
+				//push pedal to array[10];
+				//get the median_of _the_array
 
-	     		//if state is DRIVE then send command upcb2
-		    	//send_TC( upcb  , destIPAddr , 5001 , output );
+				//if state is DRIVE then send command upcb2
+				//send_TC( upcb  , destIPAddr , 5001 , output );
 
-		    	if(car_state == DRIVE ){//DRIVE){
+				if(car_state == DRIVE ){//DRIVE){
 					send_msg_to_dest2(output);
 					send_msg_to_dest(output);
 					//send_msg_to_dest2_temp( output);
 
-		    		}
+					}
 				}
-	            break;
+			break;
 
-	         case 0x81  :
-	     		//HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD3_Pin , GPIO_PIN_SET);
+			case 0x81  :
+			//HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD3_Pin , GPIO_PIN_SET);
 
-	               CAN_1_Rx_rtr = (uint8_t)0x02U & CAN1->sFIFOMailBox[0].RIR;
-	               CAN_1_Rx_dlc = (uint8_t)0x0FU & CAN1->sFIFOMailBox[0].RDTR;
-	               CAN_1_Rx_fmi = (uint8_t)0xFFU & (CAN1->sFIFOMailBox[0].RDTR >> 8U);
+			   CAN_1_Rx_rtr = (uint8_t)0x02U & CAN1->sFIFOMailBox[0].RIR;
+			   CAN_1_Rx_dlc = (uint8_t)0x0FU & CAN1->sFIFOMailBox[0].RDTR;
+			   CAN_1_Rx_fmi = (uint8_t)0xFFU & (CAN1->sFIFOMailBox[0].RDTR >> 8U);
 
-	               CAN_1_RecData[0] = CAN1->sFIFOMailBox[0].RDLR;
-	               CAN_1_RecData[1] = CAN1->sFIFOMailBox[0].RDLR >> (8U);
-	               CAN_1_RecData[2] = CAN1->sFIFOMailBox[0].RDLR >> (16U);
-	               CAN_1_RecData[3] = CAN1->sFIFOMailBox[0].RDLR >> (24U);
-	               CAN_1_RecData[4] = CAN1->sFIFOMailBox[0].RDHR;
-	               CAN_1_RecData[5] = CAN1->sFIFOMailBox[0].RDHR >> (8U);
-	               CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);
-	               CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);
+			   CAN_1_RecData[0] = CAN1->sFIFOMailBox[0].RDLR;
+			   CAN_1_RecData[1] = CAN1->sFIFOMailBox[0].RDLR >> (8U);
+			   CAN_1_RecData[2] = CAN1->sFIFOMailBox[0].RDLR >> (16U);
+			   CAN_1_RecData[3] = CAN1->sFIFOMailBox[0].RDLR >> (24U);
+			   CAN_1_RecData[4] = CAN1->sFIFOMailBox[0].RDHR;
+			   CAN_1_RecData[5] = CAN1->sFIFOMailBox[0].RDHR >> (8U);
+			   CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);
+			   CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);
 
-	               if( (CAN_1_RecData[0] == 0x55) && (CAN_1_RecData[1] == 0x55) && (CAN_1_RecData[2] == 0xAA) && (CAN_1_RecData[3] == 0x55) && (CAN_1_RecData[4] == 0x5A) && (CAN_1_RecData[5] == 0xA5) && (CAN_1_RecData[6] == 0x5A) && (CAN_1_RecData[7] == 0xA5)  ){
-	            	   Keep_80[1] = 0x00;
-	               }
+			   if( (CAN_1_RecData[0] == 0x55)
+					   && (CAN_1_RecData[1] == 0x55)
+					   && (CAN_1_RecData[2] == 0xAA)
+					   && (CAN_1_RecData[3] == 0x55)
+					   && (CAN_1_RecData[4] == 0x5A)
+					   && (CAN_1_RecData[5] == 0xA5)
+					   && (CAN_1_RecData[6] == 0x5A)
+					   && (CAN_1_RecData[7] == 0xA5)  ){
+				   Keep_80[1] = 0x00;
+			   }
 
-	            break;
+			break;
 
 
-	         default :
-	        asm("NOP");
-	        asm("NOP");
-	        asm("NOP");
-	        asm("NOP");
-	        asm("NOP");
-	        asm("NOP");
-	        asm("NOP");
-	        asm("NOP");
-	      }
+			default :
+			asm("NOP");
+			asm("NOP");
+			asm("NOP");
+			asm("NOP");
+			asm("NOP");
+			asm("NOP");
+			asm("NOP");
+			asm("NOP");
+			}
 
-	    SET_BIT(CAN1->RF0R, CAN_RF0R_RFOM0);
-	    }
-	  }
+	SET_BIT(CAN1->RF0R, CAN_RF0R_RFOM0);
+	}
+  }
 #if 0
   /* USER CODE END CAN1_RX0_IRQn 0 */
   HAL_CAN_IRQHandler(&hcan1);
@@ -307,8 +332,8 @@ void CAN1_RX0_IRQHandler(void)
 }
 
 /**
-* @brief This function handles CAN1 RX1 interrupt.
-*/
+  * @brief This function handles CAN1 RX1 interrupt.
+  */
 void CAN1_RX1_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_RX1_IRQn 0 */
@@ -321,8 +346,8 @@ void CAN1_RX1_IRQHandler(void)
 }
 
 /**
-* @brief This function handles CAN1 SCE interrupt.
-*/
+  * @brief This function handles CAN1 SCE interrupt.
+  */
 void CAN1_SCE_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_SCE_IRQn 0 */
@@ -335,8 +360,8 @@ void CAN1_SCE_IRQHandler(void)
 }
 
 /**
-* @brief This function handles Ethernet global interrupt.
-*/
+  * @brief This function handles Ethernet global interrupt.
+  */
 void ETH_IRQHandler(void)
 {
   /* USER CODE BEGIN ETH_IRQn 0 */
