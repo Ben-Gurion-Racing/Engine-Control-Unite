@@ -83,8 +83,8 @@ volatile unsigned char	Time_1_Ms_Flag = 0x00;
 volatile unsigned char	Time_5_Ms_Flag = 0x00;
 volatile unsigned char	Time_1_Se_Flag = 0x00;
 //==================== KEEP =========================
-volatile unsigned char	Keep_80[16];
-volatile unsigned char	Keep_420[16];
+volatile unsigned char	Keep_80[16];				//Keep_80[i] indicate if still waiting for a response from unit 'i' to the 0x80 CAN message
+volatile unsigned char	Keep_420[16];				//Keep_420[i] indicate if still waiting for a response from unit 'i' to the 0x420 CAN message
 
 //==================== FLAG =========================
 
@@ -97,21 +97,22 @@ int RPM_r = 0x00;
 int RPM_L = 0x00;
 double motor_temp_r;                                 // Motor temperature?
 
+//==================== VALIDATION DATA ==============
+
+/*--T11.9.2(c) Failures of sensor signals used in programmable devices--*/
+const uint16_t appsValueRange[6] = {
+		APPS_1_MAX,	//the max value of apps 1 in its mechanical range of movement
+		APPS_1_MIN,	//the min value of apps 1 in its mechanical range of movement
+		APPS_2_MAX,	//the max value of apps 2 in its mechanical range of movement
+		APPS_2_MIN,	//the min value of apps 2 in its mechanical range of movement
+		0x0,
+		0x0
+};
 
 //==================== MAIN var =====================
 volatile unsigned int count = 0;
 static void init_CAN1_BGR(void);                     // Initiating the CAN module?
 static void init_CAN_Filter(void);
-#if 0                                                // Original conversion code for the tourqe request
-/*aviciis code BEGIN*/
-uint32_t val;
-uint32_t output;
-double max_val = MAXIMUM_VAL;
-double min_val = MINIMUM_VAL;
-double scale = OUTPUT_SCALE;
-char answer;
-/*aviciis code END*/
-#endif
 
 /* USER CODE END PV */
 
@@ -318,8 +319,8 @@ while(1){
 			if(motor_LEFT  == 0 || motor_RIGHT == 0){
 				car_state = NUTRAL;
 				printf("\r Start_Motor \n");
-				Start_Motor_1(); //set motor off
-				Start_Motor_2(); //set motor off
+				Start_Motor_1(); //set motor on
+				Start_Motor_2(); //set motor on
 				HAL_Delay(200);
 			}
 			else
@@ -346,9 +347,9 @@ while(1){
 		//if button is push and pedal value is on and motor state is MO=1 then waite for 100 iteration , and then move to ready to drive state
 		break;
 	case BUZZER:
-		 HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_SET);
-		 if ((HAL_GetTick() - tickstart) > 2000U){
-			 HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_RESET);
+		 HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_SET);			//turn buzzer on
+		 if ((HAL_GetTick() - tickstart) > 2000U){										//check how much time elapse
+			 HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_RESET);	//turn buzzer off
 			 car_state = DRIVE; }
 		break;
 	case DRIVE:

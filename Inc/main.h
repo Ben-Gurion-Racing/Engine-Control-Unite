@@ -111,18 +111,31 @@ void Error_Handler(void);
 #define LD2_Pin GPIO_PIN_7
 #define LD2_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-/*aviciis code BEGIN*/
 
+//=================== CAR STATE =======================
 
 #define NUTRAL 				1
 #define IGNITION_TO_DRIVE 	2
 #define BUZZER				3
 #define DRIVE 				4
 #define ERROR_state			5
-//#define ERROR				5
+
+//=================== APPS VALIDATION =======================
+
+/*--T11.9.2(c) Failures of sensor signals used in programmable devices--*/
+#define APPS_1_MAX		0xFFFF
+#define APPS_1_MIN		0x0
+#define APPS_2_MAX		0xFFFF
+#define APPS_2_MIN		0x0
+
+//=========== GLOBAL ERRORS =============
+#define ERROR_APPS              0xFFFF
+#define ERROR_APPS_MAXVALUE		0xDFFF
+#define ERROR_BPPS              0xFF
+#define ERROR_APPS_BPPS_TIMEOUT 0xFF
 
 
-/*aviciis code END*/
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

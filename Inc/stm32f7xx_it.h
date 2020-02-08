@@ -29,6 +29,13 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+ /*--T11.9.2(c) Failures of sensor signals used in programmable devices--*/
+ #define APPS_1_MAX		0xFFFF
+ #define APPS_1_MIN		0x0
+ #define APPS_2_MAX		0xFFFF
+ #define APPS_2_MIN		0x0
+
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

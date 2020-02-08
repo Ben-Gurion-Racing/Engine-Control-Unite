@@ -37,7 +37,8 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define APPS_0_VALUE (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) );
+#define APPS_1_VALUE (0xFF00 & ( CAN_1_RecData[3] << 8 )) | (0x00FF & (CAN_1_RecData[2] ) );
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -71,9 +72,26 @@ unsigned long 	CAN_1_Rx_temp_id;
 unsigned int  	CAN_1_Rx_eid;
 unsigned int  	CAN_1_Rx_sid;
 unsigned long 	CAN_1_Tx_temp_id;
+
+/**
+ * CAN_1_Rx_ide is the Identifier extension in the CAN receive FIFO mailbox identifier register
+ * This bit defines the identifier type of message in the mailbox.
+ * 0: Standard identifier.
+ * 1: Extended identifier.
+ * REFERENCE MANUAL page  1566.
+ */
 uint32_t 		CAN_1_Rx_ide;
-uint32_t 		CAN_1_Rx_rtr;
-uint32_t 		CAN_1_Rx_dlc;
+
+uint32_t 		CAN_1_Rx_rtr;	/*!< CAN receive FIFO mailbox identifier register> */
+
+uint32_t 		CAN_1_Rx_dlc;	/*!< CAN receive FIFO mailbox data length control register> */
+
+/**
+ * CAN_1_Rx_fmi is the CAN receive FIFO mailbox Filter match index
+ *	This register contains the index of the filter the message stored in the mailbox passed through.
+ *	For more details on identifier filtering refer to:
+ *	Section 40.7.4: Identifier filtering on REFERENCE MANUAL page 1542
+ */
 uint32_t 		CAN_1_Rx_fmi;
 
 
@@ -99,6 +117,9 @@ extern volatile unsigned char	Keep_420[16];
 extern volatile unsigned char brak_flag ;
 extern volatile unsigned car_state;
 
+//=============== APPS VALIDATION ===================
+extern const uint16_t appsValueRange[6];
+uint16_t apps[2];							//will hold the value of apps0 and apps1
 
 /* External variables --------------------------------------------------------*/
 extern ETH_HandleTypeDef heth;
@@ -185,25 +206,39 @@ void CAN1_RX0_IRQHandler(void)
 	uint32_t esrflags = READ_REG(CAN1->ESR);
 
 
-  /* Receive FIFO 0 message pending interrupt management *********************/
-  if ((interrupts & CAN_IT_RX_FIFO0_MSG_PENDING) != 0U)
+  /* Receive FIFO 0 message pending interrupt management *********************/  //definition in reference manual page  1552
+  if ((interrupts & CAN_IT_RX_FIFO0_MSG_PENDING) != 0U)  //Check if the interrupt came due to a FIFO message interrupt on FIFO 0 register
   {
-	/* Check if message is still pending */
+	/* Check if message is still pending */		//the FMP0 bits ([0,1]) in the FIFO0 register indicate how many messages are pending (REFERENCE MANUAL page  1558)
 	if ((CAN1->RF0R & CAN_RF0R_FMP0) != 0U)
 	{
-
+		/* RIR == Receive Identifier Register: REFERANCE MANUAL page  1566*/
 		CAN_1_Rx_ide = (uint8_t)0x04U & CAN1->sFIFOMailBox[0].RIR;
-		if ( CAN_1_Rx_ide == CAN_ID_STD )
+		if ( CAN_1_Rx_ide == CAN_ID_STD )										//if true than the message has Standard identifier
 		{
-			CAN_1_Rx_eid = 0x00;
-			CAN_1_Rx_sid = 0x000007FFU & (CAN1->sFIFOMailBox[0].RIR >> 21U);
+			CAN_1_Rx_eid = 0x00;												//no need in extended identifier
+			CAN_1_Rx_sid = 0x000007FFU & (CAN1->sFIFOMailBox[0].RIR >> 21U);	//gets the bits of the standard identifier [31:21] in RIR
+
+			/**** Setting data for a message with standart identifier ****/
+			CAN_1_Rx_rtr = (uint8_t)0x02U & CAN1->sFIFOMailBox[0].RIR;
+			CAN_1_Rx_dlc = (uint8_t)0x0FU & CAN1->sFIFOMailBox[0].RDTR;
+			CAN_1_Rx_fmi = (uint8_t)0xFFU & (CAN1->sFIFOMailBox[0].RDTR >> 8U);
+																	// | 	0x421:		|
+			CAN_1_RecData[0] = CAN1->sFIFOMailBox[0].RDLR;			// | APPS_0 LSB		|
+			CAN_1_RecData[1] = CAN1->sFIFOMailBox[0].RDLR >> (8U);	// | APPS_0 MSB		|
+			CAN_1_RecData[2] = CAN1->sFIFOMailBox[0].RDLR >> (16U);	// | APPS_1 LSB		|
+			CAN_1_RecData[3] = CAN1->sFIFOMailBox[0].RDLR >> (24U);	// | APPS_1 MSB		|
+			CAN_1_RecData[4] = CAN1->sFIFOMailBox[0].RDHR;			// | APPS_2 LSB		|
+			CAN_1_RecData[5] = CAN1->sFIFOMailBox[0].RDHR >> (8U);	// | APPS_2 MSB		|
+			CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);	// | BPPS_Signal	|
+			CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);	// | valid_Apps_Bpps|
 		}
-		else
+		else																	//than message has extended identifier
 		{
-			CAN_1_Rx_sid = 0x00;
-			CAN_1_Rx_eid = 0x1FFFFFFFU & (CAN1->sFIFOMailBox[0].RIR >> 3U);
+			CAN_1_Rx_sid = 0x00;												//no need in standard identifier
+			CAN_1_Rx_eid = 0x1FFFFFFFU & (CAN1->sFIFOMailBox[0].RIR >> 3U);		// gets the bits of the extended identifier [31:3] in RIR
 		}
-		switch(CAN_1_Rx_sid)
+		switch(CAN_1_Rx_sid)													//Handling standard identifier message
 		{
 			case 0x401  :
 
@@ -212,20 +247,7 @@ void CAN1_RX0_IRQHandler(void)
 			break;
 			case 0x421 :	//Answer for the 0x420 message (getting samples of the pedals sensors from the pedals unite)
 
-				CAN_1_Rx_rtr = (uint8_t)0x02U & CAN1->sFIFOMailBox[0].RIR;
-				CAN_1_Rx_dlc = (uint8_t)0x0FU & CAN1->sFIFOMailBox[0].RDTR;
-				CAN_1_Rx_fmi = (uint8_t)0xFFU & (CAN1->sFIFOMailBox[0].RDTR >> 8U);
-
-				CAN_1_RecData[0] = CAN1->sFIFOMailBox[0].RDLR;			//APPS_0 LSB
-				CAN_1_RecData[1] = CAN1->sFIFOMailBox[0].RDLR >> (8U);	//APPS_0 MSB
-				CAN_1_RecData[2] = CAN1->sFIFOMailBox[0].RDLR >> (16U);	//APPS_1 LSB
-				CAN_1_RecData[3] = CAN1->sFIFOMailBox[0].RDLR >> (24U);	//APPS_1 MSB
-				CAN_1_RecData[4] = CAN1->sFIFOMailBox[0].RDHR;			//APPS_2 LSB
-				CAN_1_RecData[5] = CAN1->sFIFOMailBox[0].RDHR >> (8U);	//APPS_2 MSB
-				CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);	//BPPS_Signal
-				CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);	//valid_Apps_Bpps
-
-				if( CAN_1_RecData[7] == 0xFF){ //cheak_if_pedal_valid
+				if( CAN_1_RecData[7] == ERROR_APPS_BPPS_TIMEOUT){ //cheak_if_pedal_valid
 
 					/* Set up the Id */
 					CAN1->sTxMailBox[2U].TIR =  ((  0x400   << 21U) |  0);
@@ -238,71 +260,72 @@ void CAN1_RX0_IRQHandler(void)
 					/* Request transmission */
 					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
 				}
-				else{
+				else
+				{
+					output = 0;								//START FROM SAFE MODE
 					Keep_420[1] = 0x00;
-					val = ( (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) ) ) ;
-					output=( (val-min_val) / (max_val-min_val) ) * scale;
-
-					if(output > 100) output = 100;
-					//output = output && 0x00FF;
-					brak_flag = 0;
-
-					if( CAN_1_RecData[6] == 0x01 ){  // break
-						output = 0;
-						brak_flag = 1;
+					apps[0] = APPS_0_VALUE;
+					apps[1] = APPS_1_VALUE;
+					if(apps[0] == ERROR_APPS_MAXVALUE || apps[1] == ERROR_APPS_MAXVALUE ){
+						//@TODO ENTER SAFE MODE
 					}
-#if 0
-					CAN1->sTxMailBox[2U].TIR =  ((  0x60   << 21U) |  0);
-					/* Set up the DLC */
-					CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
-					CAN1->sTxMailBox[2U].TDTR |= 0x00000001U;
-					/* Set up the data field */
-					CAN1->sTxMailBox[2U].TDLR =  output;
-					CAN1->sTxMailBox[2U].TDHR =  val;
-					/* Request transmission */
-					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
-#endif
+					else if (0 /*test value plausabilty*/){
+						//TODO ENTER SAFE MODE
+					}
+					else		//drive :)
+					{
+						val = ( (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) ) ) ;
+						output=( (val-min_val) / (max_val-min_val) ) * scale;
+
+						if(output > 100) output = 100;
+						//output = output && 0x00FF;
+						brak_flag = 0;
+
+						if( CAN_1_RecData[6] == 0x01 ){  // break
+							output = 0;
+							brak_flag = 1;
+						}
+	#if 0
+						CAN1->sTxMailBox[2U].TIR =  ((  0x60   << 21U) |  0);
+						/* Set up the DLC */
+						CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
+						CAN1->sTxMailBox[2U].TDTR |= 0x00000001U;
+						/* Set up the data field */
+						CAN1->sTxMailBox[2U].TDLR =  output;
+						CAN1->sTxMailBox[2U].TDHR =  val;
+						/* Request transmission */
+						CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
+	#endif
 
 
-				//push pedal to array[10];
-				//get the median_of _the_array
 
-				//if state is DRIVE then send command upcb2
-				//send_TC( upcb  , destIPAddr , 5001 , output );
+					}
+					//push pedal to array[10];
+					//get the median_of _the_array
 
-				if(car_state == DRIVE ){//DRIVE){
-					send_msg_to_dest2(output);
-					send_msg_to_dest(output);
-					//send_msg_to_dest2_temp( output);
+					//if state is DRIVE then send command upcb2
+					//send_TC( upcb  , destIPAddr , 5001 , output );
 
+					if(car_state == DRIVE ){//DRIVE){
+						send_msg_to_dest2(output);
+						send_msg_to_dest(output);
+						//send_msg_to_dest2_temp( output);
 					}
 				}
 			break;
 
-			case 0x81  :
+			case 0x81  :  //indicate there is a communication between the ECU and PU
 			//HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD3_Pin , GPIO_PIN_SET);
 
-			   CAN_1_Rx_rtr = (uint8_t)0x02U & CAN1->sFIFOMailBox[0].RIR;
-			   CAN_1_Rx_dlc = (uint8_t)0x0FU & CAN1->sFIFOMailBox[0].RDTR;
-			   CAN_1_Rx_fmi = (uint8_t)0xFFU & (CAN1->sFIFOMailBox[0].RDTR >> 8U);
-
-			   CAN_1_RecData[0] = CAN1->sFIFOMailBox[0].RDLR;
-			   CAN_1_RecData[1] = CAN1->sFIFOMailBox[0].RDLR >> (8U);
-			   CAN_1_RecData[2] = CAN1->sFIFOMailBox[0].RDLR >> (16U);
-			   CAN_1_RecData[3] = CAN1->sFIFOMailBox[0].RDLR >> (24U);
-			   CAN_1_RecData[4] = CAN1->sFIFOMailBox[0].RDHR;
-			   CAN_1_RecData[5] = CAN1->sFIFOMailBox[0].RDHR >> (8U);
-			   CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);
-			   CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);
 
 			   if( (CAN_1_RecData[0] == 0x55)
 					   && (CAN_1_RecData[1] == 0x55)
-					   && (CAN_1_RecData[2] == 0xAA)
+					   && (CAN_1_RecData[2] == 0x55)
 					   && (CAN_1_RecData[3] == 0x55)
-					   && (CAN_1_RecData[4] == 0x5A)
-					   && (CAN_1_RecData[5] == 0xA5)
-					   && (CAN_1_RecData[6] == 0x5A)
-					   && (CAN_1_RecData[7] == 0xA5)  ){
+					   && (CAN_1_RecData[4] == 0x55)
+					   && (CAN_1_RecData[5] == 0x55)
+					   && (CAN_1_RecData[6] == 0x55)
+					   && (CAN_1_RecData[7] == 0x55)  ){
 				   Keep_80[1] = 0x00;
 			   }
 
