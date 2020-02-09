@@ -53,9 +53,6 @@
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-#define MINIMUM_VAL 709.0 //0x000 //480.0
-#define MAXIMUM_VAL  2300.0//2481.0 //0xFFF //4095.0
-#define OUTPUT_SCALE 100 //0x64    // the output value will be between 0 to OUTPUT_SCALE
 
 
 //=================== ETH ============================
@@ -95,11 +92,7 @@ uint32_t 		CAN_1_Rx_dlc;	/*!< CAN receive FIFO mailbox data length control regis
 uint32_t 		CAN_1_Rx_fmi;
 
 
-uint32_t val;
-uint32_t output;
-double max_val = MAXIMUM_VAL;
-double min_val = MINIMUM_VAL;
-double scale = OUTPUT_SCALE;
+
 
 //==================== TIME =========================
 extern volatile unsigned char	Time_1_Ms_Flag;
@@ -118,8 +111,26 @@ extern volatile unsigned char brak_flag ;
 extern volatile unsigned car_state;
 
 //=============== APPS VALIDATION ===================
-extern const uint16_t appsValueRange[6];
-uint16_t apps[2];							//will hold the value of apps0 and apps1
+/*--T11.9.2(c) Failures of sensor signals used in programmable devices--*/
+const uint16_t appsMax[3] = {
+		APPS_0_MAX,	//the max value of apps 0 in its mechanical range of movement
+		APPS_1_MAX,	//the max value of apps 1 in its mechanical range of movement
+		APPS_2_MAX
+};
+const uint16_t appsMin[3] = {
+		APPS_0_MIN,	//the min value of apps 0 in its mechanical range of movement
+		APPS_1_MIN,	//the min value of apps 1 in its mechanical range of movement
+		APPS_2_MIN
+};
+
+uint32_t apps[2];							//will hold the value of apps0 and apps1
+
+uint32_t val;
+uint32_t output;
+double max_val[3] = {APPS_0_MAX , APPS_1_MAX , APPS_2_MAX};
+double min_val[3] = {APPS_0_MIN , APPS_1_MIN,APPS_2_MIN};
+uint32_t appsOutput[3];
+double scale = OUTPUT_SCALE;
 
 /* External variables --------------------------------------------------------*/
 extern ETH_HandleTypeDef heth;
@@ -247,7 +258,7 @@ void CAN1_RX0_IRQHandler(void)
 			break;
 			case 0x421 :	//Answer for the 0x420 message (getting samples of the pedals sensors from the pedals unite)
 
-				if( CAN_1_RecData[7] == ERROR_APPS_BPPS_TIMEOUT){ //cheak_if_pedal_valid
+				if( CAN_1_RecData[7] == ERROR_APPS_BPPS_TIMEOUT){			 //cheak_if_pedal_valid
 
 					/* Set up the Id */
 					CAN1->sTxMailBox[2U].TIR =  ((  0x400   << 21U) |  0);
@@ -263,42 +274,58 @@ void CAN1_RX0_IRQHandler(void)
 				else
 				{
 					output = 0;								//START FROM SAFE MODE
+					appsOutput[0]= 0;
+					appsOutput[1]= 0;
+					appsOutput[2]= 0;
+
 					Keep_420[1] = 0x00;
 					apps[0] = APPS_0_VALUE;
 					apps[1] = APPS_1_VALUE;
-					if(apps[0] == ERROR_APPS_MAXVALUE || apps[1] == ERROR_APPS_MAXVALUE ){
-						//@TODO ENTER SAFE MODE
+					if( CAN_1_RecData[6] == 0x01 ){  // check if break pedal is pressed
+						brak_flag = 1;
 					}
-					else if (0 /*test value plausabilty*/){
-						//TODO ENTER SAFE MODE
-					}
-					else		//drive :)
-					{
-						val = ( (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) ) ) ;
-						output=( (val-min_val) / (max_val-min_val) ) * scale;
-
-						if(output > 100) output = 100;
-						//output = output && 0x00FF;
-						brak_flag = 0;
-
-						if( CAN_1_RecData[6] == 0x01 ){  // break
-							output = 0;
-							brak_flag = 1;
+					else{							// Check The APPS
+						if(apps[0] == ERROR_APPS_MAXVALUE || apps[1] == ERROR_APPS_MAXVALUE ){
+							printf("CAN1_Rx IT: ERROR_APPS_MAXVALUE");
 						}
-	#if 0
-						CAN1->sTxMailBox[2U].TIR =  ((  0x60   << 21U) |  0);
-						/* Set up the DLC */
-						CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
-						CAN1->sTxMailBox[2U].TDTR |= 0x00000001U;
-						/* Set up the data field */
-						CAN1->sTxMailBox[2U].TDLR =  output;
-						CAN1->sTxMailBox[2U].TDHR =  val;
-						/* Request transmission */
-						CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
-	#endif
 
 
+						else if (   apps[0] > appsMax[0]		//Check if the apps value is plausible
+								 ||	apps[0] < appsMin[0]
+								 || apps[1] > appsMax[1]
+								 || apps[1] < appsMin[1] ){
 
+							printf("CAN1_Rx IT: Plausibility check failed");
+						}
+						else//drive :)
+						{
+							#if 0	//this will be the next output calculation (by Avishai)
+							// both apps are inverted to each other and have the same travel range
+							// therefore they are compleating each other to 100%
+							getOutput(0); 									//put the travel precentage of APPS0 in appsOutput[0]
+							getOutput(1); 									//put the travel precentage of APPS1 in appsOutput[1]
+							if( ( appsOutput[0] + appsOutput[1] ) < 90)		//T11.8.9 : Implausibility is defined as a deviation of more than ten percentage points pedal travel between any of the used APPSs
+								output = 0;
+							else
+								output = appsOutput[0];
+							#endif
+							val = apps[0] ;
+							output=( (val-min_val[0]) / (max_val[0]-min_val[0]) ) * scale;
+
+							if(output > 100) output = 100;
+							//output = output && 0x00FF;
+#if 0
+					CAN1->sTxMailBox[2U].TIR =  ((  0x60   << 21U) |  0);
+					/* Set up the DLC */
+					CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
+					CAN1->sTxMailBox[2U].TDTR |= 0x00000001U;
+					/* Set up the data field */
+					CAN1->sTxMailBox[2U].TDLR =  output;
+					CAN1->sTxMailBox[2U].TDHR =  val;
+					/* Request transmission */
+					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
+#endif
+						}
 					}
 					//push pedal to array[10];
 					//get the median_of _the_array
@@ -398,5 +425,13 @@ void ETH_IRQHandler(void)
 
 /* USER CODE BEGIN 1 */
 
+/**
+ * inline double getOutput(int apps_i)
+ * return the scaled  precentage of the apps_i
+ * APPS movement.
+ */
+inline void getOutput(int apps_i){
+	appsOutput[apps_i] = ( (apps[apps_i] - min_val[apps_i]) / (max_val[apps_i] - min_val[apps_i]) ) * scale;
+}
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

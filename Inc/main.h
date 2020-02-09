@@ -123,10 +123,18 @@ void Error_Handler(void);
 //=================== APPS VALIDATION =======================
 
 /*--T11.9.2(c) Failures of sensor signals used in programmable devices--*/
+
+#define APPS_0_MIN		709
+#define APPS_0_MAX		2300
+
+#define APPS_1_MIN		0
 #define APPS_1_MAX		0xFFFF
-#define APPS_1_MIN		0x0
-#define APPS_2_MAX		0xFFFF
-#define APPS_2_MIN		0x0
+
+#define APPS_2_MIN		0
+#define APPS_2_MAX		0
+
+#define OUTPUT_SCALE 	100
+
 
 //=========== GLOBAL ERRORS =============
 #define ERROR_APPS              0xFFFF

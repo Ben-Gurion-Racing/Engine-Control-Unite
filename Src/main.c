@@ -97,17 +97,6 @@ int RPM_r = 0x00;
 int RPM_L = 0x00;
 double motor_temp_r;                                 // Motor temperature?
 
-//==================== VALIDATION DATA ==============
-
-/*--T11.9.2(c) Failures of sensor signals used in programmable devices--*/
-const uint16_t appsValueRange[6] = {
-		APPS_1_MAX,	//the max value of apps 1 in its mechanical range of movement
-		APPS_1_MIN,	//the min value of apps 1 in its mechanical range of movement
-		APPS_2_MAX,	//the max value of apps 2 in its mechanical range of movement
-		APPS_2_MIN,	//the min value of apps 2 in its mechanical range of movement
-		0x0,
-		0x0
-};
 
 //==================== MAIN var =====================
 volatile unsigned int count = 0;
