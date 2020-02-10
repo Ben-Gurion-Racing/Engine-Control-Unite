@@ -370,7 +370,7 @@ void CAN1_RX0_IRQHandler(void)
 			asm("NOP");
 			}
 
-	SET_BIT(CAN1->RF0R, CAN_RF0R_RFOM0);
+	SET_BIT(CAN1->RF0R, CAN_RF0R_RFOM0);   //release message from FIFO Queue
 	}
   }
 #if 0
