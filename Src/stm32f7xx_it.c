@@ -93,6 +93,7 @@ uint32_t 		CAN_1_Rx_fmi;
 extern volatile unsigned char	Time_1_Ms_Flag;
 extern volatile unsigned char	Time_5_Ms_Flag;				 // This flag elapses every 5ms - used for 420 functions(motor outputs and etc)
 extern volatile unsigned char	Time_1_Se_Flag;		 		 // This flag elapses every 1s - used for 80 message - checks online users
+unsigned int					PlausibilityWatchDog=0;      // Counts 100ms for T 11.8.8 plausibility error
 unsigned int					Time_1_Ms_Counter = 0;
 unsigned int					Time_1_Se_Counter = 0;
 //===================== KEEP ===========================
@@ -131,8 +132,8 @@ int msec_5 = 0;
 /* External variables --------------------------------------------------------*/
 extern ETH_HandleTypeDef heth;
 extern CAN_HandleTypeDef hcan1;
-/* USER CODE BEGIN EV */
 
+/* USER CODE BEGIN EV */
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -258,27 +259,48 @@ void CAN1_RX0_IRQHandler(void)
 					if( CAN_1_RecData[6] == 0x01 ){                             // Check if brake pedal is pressed
 						brak_flag = 1;
 					}
-					else{				                            			// Check The APPS
-						if(apps[0] == ERROR_APPS_MAXVALUE || apps[1] == ERROR_APPS_MAXVALUE ){ // I think this condition can be written better
-							printf("CAN1_Rx IT: ERROR_APPS_MAXVALUE");
+					else{		// Check The APPS
+						// T11.9.2.b - short circuit to supply voltage
+						if(apps[0] > ERROR_APPS_MAXVALUE){
+							printf("CAN1_Rx IT: ERROR_APPS0_MAXVALUE");
 						}
-						else if (   apps[0] > appsMax[0]		                // Check if the APPS value is plausible
+						else if(apps[1] > ERROR_APPS_MAXVALUE ){
+							printf("CAN1_Rx IT: ERROR_APPS1_MAXVALUE");
+						}
+						// T11.9.2.c - Implausibility due to out of range signals, e.g. mechanically impossible angle of an angle sensor
+						else if (   apps[0] > appsMax[0]
 								 ||	apps[0] < appsMin[0]
 								 || apps[1] > appsMax[1]
 								 || apps[1] < appsMin[1] ){
-							printf("CAN1_Rx IT: Plausibility check failed");
+							printf("CAN1_Rx IT: Mechanical plausibility check failed");
+						}
+						// T11.9.2.a - short circuit to ground
+						else if (   apps[0] < ERROR_SHRT_CIRC_TO_GRND ){         // The value needs to be checked if it does represent short circuit to ground
+							printf("CAN1_Rx IT: Short circuit to ground for APPS0");
+						}
+						else if (   apps[1] < ERROR_SHRT_CIRC_TO_GRND ){         // The value needs to be checked if it does represent short circuit to ground
+							printf("CAN1_Rx IT: Short circuit to ground for APPS1");
 						}
 						else//drive :)
 						{
 							#if 0	//this will be the next output calculation (by Avishai)
-							// both apps are inverted to each other and have the same travel range
-							// therefore they are compleating each other to 100%
+							// Both apps are inverted to each other and have the same travel range
+							// Therefore they are completing each other to 100%
 							getOutput(0); 									//put the travel precentage of APPS0 in appsOutput[0]
 							getOutput(1); 									//put the travel precentage of APPS1 in appsOutput[1]
-							if( ( appsOutput[0] + appsOutput[1] ) < 90)		//T11.8.9 : Implausibility is defined as a deviation of more than ten percentage points pedal travel between any of the used APPSs
-								output = 0;
-							else
-								output = appsOutput[0];
+							if( ((appsOutput[0] + appsOutput[1]) < 90)||((appsOutput[0] + appsOutput[1]) >110))		//T11.8.9 : Implausibility is defined as a deviation of more than 10% points pedal travel between any of the used APPSs
+								{
+									PlausibilityWatchDog++;                 // Counting 90ms for plausibility error T !!.8.8
+									if (PlausibilityWatchDog>=18)           // If 90ms elapsed => cut power to motor until the Implausibility is corrected
+										output = 0;
+									else									// else, keep motor output until 90ms elapses
+										output = appsOutput[0];
+								}
+							else											// If there is not implausibility error => send output to motors
+								{
+									output = appsOutput[0];
+									PlausibilityWatchDog=0;                 // Reset the implausibility watch dog
+								}
 							#endif
 							val = apps[0] ;
 							output=( (val-min_val[0]) / (max_val[0]-min_val[0]) ) * scale;
