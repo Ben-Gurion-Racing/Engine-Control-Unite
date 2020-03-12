@@ -98,6 +98,7 @@ extern uint32_t output;                              // This is a value from 0-1
 int RPM_r = 0x00;
 int RPM_L = 0x00;
 double motor_temp_r;                                 // Motor temperature
+volatile int ErrorState=ERROR_OpenSHTDWN;			 // There are 2 cases of errors at Safe state detailed at main.h
 //===================== MAIN var =======================
 volatile unsigned int count = 0; // not sure - didn't see it at other parts of the code
 static void init_CAN1_BGR(void);                     // Initiating the CAN module
@@ -215,10 +216,10 @@ while(1){
 
 	if(Time_5_Ms_Flag){                             // "Driving Loop" - every 5ms check the APPS state
 		Time_5_Ms_Flag = 0x00;                      // Flag reset
- 		if(Keep_420[1] == 0x00){  // Not sure? maybe check if the ECU is waiting for a 420 message?
-     		Keep_420[1] = 0x01;   // Not sure? maybe if its not waiting - than flag that it is waiting for a 420 message?
+ 		if(Keep_420[1] == 0x00){  					// If the ECU is not already waiting for a 420 message answer(421 message) => make it wait for one
+     		Keep_420[1] = 0x01;   					// Set the the flag to 1 => ECU is waiting for a 420 message answer
  		}
- 		else{
+ 		else{										// Else => error
  			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 5ms?
  		}
 
@@ -327,16 +328,24 @@ while(1){
   // and transmit them to the motor by FIFO0 interrupts(look up stm32f7xx_it.c file)
 	case DRIVE:
 		if(motor_RIGHT == 0 || motor_LEFT == 0){                                 // If one of the motors doesn't work => go to Safe State
-			car_state = ERROR_state;
+			car_state = SAFE_STATE;
+			ErrorState=ERROR_DontSHTDWN;										 // This error doesn't open shutdown circuit
 			tickstart = HAL_GetTick();                                           // Start a timer for the Safe State
 		}
 	break;
-	case ERROR_state:
-  // NEED TO VERIFY THAT THIS STATE IS DEFINED AS THE RULES SAY(SCS for example)
-		if(motor_RIGHT == 1 && motor_LEFT == 1)                                  // If the motors work => return to DRIVE state
-			car_state = DRIVE;
-		if ((HAL_GetTick() - tickstart) > 5000U)                                 // If 5sec has passed in Safe State => return to NUTRAL state
-			car_state = NUTRAL;
+	case SAFE_STATE:
+		if (ErrorState==ERROR_DontSHTDWN)										 // The error doesn't open shutdown circuit
+		{
+			if(motor_RIGHT == 1 && motor_LEFT == 1)                              // If the motors work => return to DRIVE state
+				car_state = DRIVE;
+			if ((HAL_GetTick() - tickstart) > 5000U)                             // If 5sec has passed in Safe State => return to NUTRAL state
+				car_state = NUTRAL;
+				ErrorState=ERROR_OpenSHTDWN;									 // Reset the error state flag
+		}
+		else																	 // Open shutdown circuit
+			ErrorState=ERROR_OpenSHTDWN;
+			// Need to add an open shutdown circuit pin here
+			// HAL_GPIO_WritePin( GPIOB , GPIO_PIN_5 , GPIO_PIN_SET); // Need to choose a free pin
 	break;
 	}
 

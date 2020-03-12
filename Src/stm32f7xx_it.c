@@ -146,8 +146,8 @@ void SysTick_Handler(void)                            // This is the timer inter
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
 	Time_1_Ms_Counter++;
-	Time_1_Ms_Flag = 0x01;                            // not sure why its here
-	if( !(Time_1_Ms_Counter % 5) ){                   // Every 5ms, set the 5ms Flag to 1
+	Time_1_Ms_Flag = 0x01;                            // First flag initialize(the first 5 ms)
+	if( !(Time_1_Ms_Counter % 5) ){                   // Every 5ms, set the 5ms Flag to 1(This flag needs to be set here because at the main it is reset
 		Time_5_Ms_Flag = 0x01;
 	}
 	if(Time_1_Ms_Counter >= 1000){                    // Every 1s do the following:
@@ -246,14 +246,14 @@ void CAN1_RX0_IRQHandler(void)
 					/* Request transmission */
 					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;                // not sure
 				}
-				else                                                            // Not sure about this
+				else                                                            // A sampled was received from the APPS
 				{
-					output = 0;								                    // START FROM SAFE MODE
+					output = 0;
 					appsOutput[0]= 0;
 					appsOutput[1]= 0;
 					appsOutput[2]= 0;
 
-					Keep_420[1] = 0x00;                                         // not sure, maybe some enable?
+					Keep_420[1] = 0x00;                                         // 421 Message has been received - set the 420 Flag to 0 for the next request
 					apps[0] = APPS_0_VALUE;
 					apps[1] = APPS_1_VALUE;
 					if( CAN_1_RecData[6] == 0x01 ){                             // Check if brake pedal is pressed
@@ -263,9 +263,13 @@ void CAN1_RX0_IRQHandler(void)
 						// T11.9.2.b - short circuit to supply voltage
 						if(apps[0] > ERROR_APPS_MAXVALUE){
 							printf("CAN1_Rx IT: ERROR_APPS0_MAXVALUE");
+							car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
+							ErrorState=ERROR_OpenSHTDWN;
 						}
 						else if(apps[1] > ERROR_APPS_MAXVALUE ){
 							printf("CAN1_Rx IT: ERROR_APPS1_MAXVALUE");
+							car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
+							ErrorState=ERROR_OpenSHTDWN;
 						}
 						// T11.9.2.c - Implausibility due to out of range signals, e.g. mechanically impossible angle of an angle sensor
 						else if (   apps[0] > appsMax[0]
@@ -273,13 +277,19 @@ void CAN1_RX0_IRQHandler(void)
 								 || apps[1] > appsMax[1]
 								 || apps[1] < appsMin[1] ){
 							printf("CAN1_Rx IT: Mechanical plausibility check failed");
+							car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
+							ErrorState=ERROR_OpenSHTDWN;
 						}
 						// T11.9.2.a - short circuit to ground
-						else if (   apps[0] < ERROR_SHRT_CIRC_TO_GRND ){         // The value needs to be checked if it does represent short circuit to ground
+						else if (   apps[0] < ERROR_SHRT_CIRC_TO_GRND ){        // The value needs to be checked if it does represent short circuit to ground
 							printf("CAN1_Rx IT: Short circuit to ground for APPS0");
+							car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
+							ErrorState=ERROR_OpenSHTDWN;
 						}
-						else if (   apps[1] < ERROR_SHRT_CIRC_TO_GRND ){         // The value needs to be checked if it does represent short circuit to ground
+						else if (   apps[1] < ERROR_SHRT_CIRC_TO_GRND ){        // The value needs to be checked if it does represent short circuit to ground
 							printf("CAN1_Rx IT: Short circuit to ground for APPS1");
+							car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
+							ErrorState=ERROR_OpenSHTDWN;
 						}
 						else//drive :)
 						{
