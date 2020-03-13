@@ -245,6 +245,10 @@ void CAN1_RX0_IRQHandler(void)
 					//CAN1->sTxMailBox[0U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A );
 					/* Request transmission */
 					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;                // not sure
+
+					// Error of APPS BPPS timeout received from the pedal STM => open shut down circuit
+					car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
+					ErrorState=ERROR_OpenSHTDWN;
 				}
 				else                                                            // A sampled was received from the APPS
 				{
@@ -351,7 +355,7 @@ void CAN1_RX0_IRQHandler(void)
 					   && (CAN_1_RecData[5] == 0x55)
 					   && (CAN_1_RecData[6] == 0x55)
 					   && (CAN_1_RecData[7] == 0x55)  ){
-				   Keep_80[1] = 0x00;										 	// not sure, maybe some enable?
+				   Keep_80[1] = 0x00;										 	// 81 Message has been received - set the 80 Flag to 0 for the next request
 			   }
 			break;
 

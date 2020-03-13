@@ -219,8 +219,11 @@ while(1){
  		if(Keep_420[1] == 0x00){  					// If the ECU is not already waiting for a 420 message answer(421 message) => make it wait for one
      		Keep_420[1] = 0x01;   					// Set the the flag to 1 => ECU is waiting for a 420 message answer
  		}
- 		else{										// Else => error
+ 		else{										// Else there is a delay of more than 5ms for the 420 message => open shutdown
  			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 5ms?
+ 			car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
+ 			ErrorState=ERROR_OpenSHTDWN;
+ 			// NOTE: This needs to be checked because 5ms delay for shutdown is a very small amount of time, the rules enables up to 500ms delay
  		}
 
 		// standard CAN 420 message by elik - Check the pedals state from the APPS's STM
@@ -241,6 +244,7 @@ while(1){
  		}
  		else{
  			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
+ 			// NOTE - doesn't comply with the rules of 500ms delay for a lost message
  		}
 
 		// standard CAN 80 message by elik - Check if the other STM's on the CAN network are connected
