@@ -39,7 +39,6 @@
 // https://www.st.com/content/ccc/resource/technical/document/user_manual/65/e8/20/db/16/36/45/f7/DM00103685.pdf/files/DM00103685.pdf/jcr:content/translations/en.DM00103685.pdf
 // Other relevant files - lwip.c , stm32f7xx_it.c , ethernetif.c
 
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,6 +67,7 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
+//===================== ETH ============================
 ip4_addr_t destIPAddr;
 //===================== CAN ============================
 volatile unsigned char CAN_1_Rx_received_flg = 0x00; // Represent that a CAN message has been received
@@ -101,6 +101,7 @@ double motor_temp_r;                                 // Motor temperature
 //===================== MAIN var =======================
 volatile unsigned int count = 0; // not sure - didn't see it at other parts of the code
 static void init_CAN1_BGR(void);                     // Initiating the CAN module
+
 static void init_CAN_Filter(void);
 
 /* USER CODE END PV */
@@ -114,7 +115,9 @@ static void MX_CAN1_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-int _write(int file, char *ptr, int len); // not sure
+
+int _write(int file, char *ptr, int len);            // Transmiting some data?
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -147,7 +150,9 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+
   #if 1 // not sure
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -158,7 +163,9 @@ int main(void)
   MX_CAN1_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+
   #endif
+
 
 #if 0
   /**
@@ -176,7 +183,8 @@ int main(void)
   init_CAN1_BGR();                                     // CAN1 initialize by the user
 #endif
 
-  HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD2_Pin , GPIO_PIN_RESET);    // not sure
+
+  HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD2_Pin , GPIO_PIN_RESET);    //reseting the led and the PB2(the shutdown pin)
 
   //===================== CAN ============================
   __HAL_CAN_ENABLE_IT(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);            // Enable CAN1 interrupts.
@@ -211,15 +219,17 @@ int main(void)
 while(1){
 
 	//if(can_reacive)
+
 	//get message
 
 	if(Time_5_Ms_Flag){                             // "Driving Loop" - every 5ms check the APPS state
 		Time_5_Ms_Flag = 0x00;                      // Flag reset
- 		if(Keep_420[1] == 0x00){  // Not sure? maybe check if the ECU is waiting for a 420 message?
-     		Keep_420[1] = 0x01;   // Not sure? maybe if its not waiting - than flag that it is waiting for a 420 message?
+ 		
+    if(Keep_420[1] == 0x00){  // checking if still waiting for response to 420 message  (if still waiting flag is on (1)) 
+     		Keep_420[1] = 0x01;   //turning the 420 flag on before sending it again
  		}
  		else{
- 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 5ms?
+ 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // if 420 flag is still on, turning the shutdown pin on
  		}
 
 		// standard CAN 420 message by elik - Check the pedals state from the APPS's STM
@@ -233,13 +243,13 @@ while(1){
 		/* Request transmission bit - look up reference manual */
 		CAN1->sTxMailBox[0U].TIR  |=  CAN_TI0R_TXRQ;
 	}
-	if(Time_1_Se_Flag){                             // This section prints car & motor state to the console(to the user)
-		Time_1_Se_Flag = 0x00;                      // Flag reset
- 		if(Keep_80[1] == 0x00){                     // not sure? maybe check if the ECU is waiting for a 80 message?
-     		Keep_80[1] = 0x01;                      // not sure? maybe if its not waiting - than flag that it is waiting for a 80 message?
+	if(Time_1_Se_Flag){                             //every 1 second:
+		Time_1_Se_Flag = 0x00;                      // reset 1 second flag
+ 		if(Keep_80[1] == 0x00){                     //  check if the ECU is waiting for a 80 message
+     		Keep_80[1] = 0x01;                      // setting the 80 flag on
  		}
  		else{
- 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
+ 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   //if didnt get 80 response turning on led and shutdown pin
  		}
 
 		// standard CAN 80 message by elik - Check if the other STM's on the CAN network are connected
@@ -250,12 +260,14 @@ while(1){
 		/* Set up the data field */
 		CAN1->sTxMailBox[1U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 ); //TDLR=0xAA55AA55
 		CAN1->sTxMailBox[1U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A ); //TDHR=0xA55AA55A
-		/* Request transmission bit - look up reference manual */
+		/* Request transmission bit*/     // seting the transmiting bit on to let the can mailbox that the message can be sent
 		CAN1->sTxMailBox[1U].TIR  |=  CAN_TI0R_TXRQ;
 
+    /* ask for motor state */
 		ASK_Motor_1();                              // Ask for motor 1 state
 		ASK_Motor_2();                              // Ask for motor 2 state
-		if(car_state != DRIVE){                     // If the car is not in DRIVE STATE => send 0 torque to the motors
+		
+    if(car_state != DRIVE){                     // If the car is not in DRIVE STATE => send 0 torque to the motors
 			send_msg_to_dest(0);                    // Send 0 torque to motor right
 			send_msg_to_dest2(0);                   // Send 0 torque to motor left
 		}
@@ -263,9 +275,11 @@ while(1){
 			Start_Motor_1();                        // Start motor right
 		if(motor_LEFT == 0)                         // If motor left is off => start it(not sure why every second, what if the car is at SAFE STATE?)
 			Start_Motor_2();                        // Start motor left
+
 		ASK_Motor_RPM_L();
 		ASK_Motor_RPM_r();
 		ASK_Motor_temp_R();
+
 
         // Prints to the console
 		printf("\n");
@@ -283,6 +297,7 @@ while(1){
 		printf("\n");
 		printf("\n");
 	}
+
 	MX_LWIP_Process();                              // not sure
 
 	// Car state menu
@@ -344,6 +359,7 @@ while(1){
   //send_msg_to_start_L();
   //send_msg_to_start_R();
 
+
 #if 0
   scale = 12;
 
@@ -371,9 +387,9 @@ while(1){
 	 // MX_LWIP_Process();
 	  //HAL_Delay(5);
 
-  } // not sure that these suppose to be here
+  }
   /* USER CODE END 3 */
-}  // not sure that these suppose to be here
+}
 
 /**
   * @brief System Clock Configuration
@@ -664,8 +680,10 @@ static void MX_GPIO_Init(void)
 
 /** static void init_CAN1_BGR(void)
  * CAN1 properties set by Elik Rubin
+ * not in use but its a good reference for CAN properties
  */
-static void init_CAN1_BGR(void){                // Initiating the CAN module made by elik - not sure whats in here
+static void init_CAN1_BGR(void){                
+
 
 	  hcan1.Instance = CAN1;
 	  hcan1.Init.Prescaler = 3;
@@ -687,8 +705,10 @@ static void init_CAN1_BGR(void){                // Initiating the CAN module mad
 }
 
 /**static void init_CAN_Filter(void)
+ * Can filter properties set by Elik Rubin
  */
-static void init_CAN_Filter(void){              // Can filter properties set by Elik Rubin - not sure whats in here
+static void init_CAN_Filter(void){
+
 	CAN_FilterTypeDef FilterConfig;
 		  FilterConfig.FilterIdHigh = 0xFFFFU;
 		  FilterConfig.FilterIdLow  = 0xFFFFU;
