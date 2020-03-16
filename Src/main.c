@@ -30,7 +30,15 @@
 #include  <stdio.h>
 #include  <stm32f7xx_hal_can.h>
 #include "can.h"
-//https://www.st.com/content/ccc/resource/technical/document/reference_manual/group0/96/8b/0d/ec/16/22/43/71/DM00224583/files/DM00224583.pdf/jcr:content/translations/en.DM00224583.pdf
+
+//---------------------- References ----------------------
+// STM manual reference:
+// https://www.st.com/content/ccc/resource/technical/document/reference_manual/group0/96/8b/0d/ec/16/22/43/71/DM00224583/files/DM00224583.pdf/jcr:content/translations/en.DM00224583.pdf
+// ELMO command reference:
+// https://s3.us-west-2.amazonaws.com/secure.notion-static.com/2d9ef1b5-4c83-45ac-8248-e25a7c62fbe6/MAN-G-CR.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAT73L2G45PJP3TSGT%2F20200301%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20200301T215231Z&X-Amz-Expires=86400&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEEMaCXVzLXdlc3QtMiJIMEYCIQDvLvdFmWJIns%2BzEcaxYaUIc3V1ZRSdHHLISQlI5pBAJQIhAIUxmJt55WN44353wgPZqdxYCo7MePuPUHpivgwMJYVJKrQDCBwQABoMMjc0NTY3MTQ5MzcwIgzMkJtShobXrR9VGuAqkQNq0MlyzJc73Cj%2BgiqVLmqP0GJ5q%2BK0og5KNiOetQDppGhYSL0VzfcPiPP5jK4ISiPGI%2BdVK6x3l8K%2Bdwj%2B%2FGRrqLfY9cVeGG94ADHTJHRHhIK9eLwSov%2FAp%2BExDJWxaIsZr%2FXy%2BOZt%2BfvEQMSvr1JjEoxvigmy7z0SgwXAYqhESKYYpCYZiE3bR9enUWf9TGXUqC1QNYj6VWW90SQA%2F5DGbzqxtHFu0pmSXtg5n%2BxBnz%2BGs5isyaXhonQkY7fOApFiuG7XIkiel5GxWmcTZ4pMue5%2FJi9V5Be5IUgK4pxriHd3aOG297lOEUSCKSrgB0KQYAYoUkRE7A%2Fe6t0l8FWlEilYm6qhoAvSZ0lc%2FWfx9pIDmN7KNlr3PyPnFQtJZZEjbK9%2FO9Guxk6GUGLmwEVZAS%2FDhtoKg7vJgFJ6m8tjJUxbvYtXyKOnDLFITf%2FBtmWzOpbAP1YYsngb2Qddm%2F87MNAaNZ4cSve9DFFmd5Y%2FrHYqCaU5Mjvob%2Fxq3ExyXJsTAQb5QV04YLouTxSTPYi1dzCfgPDyBTrqAYXPtKBg0qdtxWv4SqCyy6ubed155k80J%2BRc04edkuBfZbx%2FtO%2BMD1KEZt2Y3QkC1bcsQqWGPMXcslcoFvzlX%2BU%2BqlFJ0usmqkYIszPWYlDCSgukn9UPpYA%2F%2Fx8pNe%2FGHvfQqY5Bpe2EYHQfgLESObtX123swAhdLyaHFQmXU4obL7m8PeLLAFBxrtTGHizo%2Bg1JHnoGsH51O6Zj4CmWihxISfQQRRtd%2B0INVKjjaL7sCOnTweRR3XiLhR96iFUkQYrtQaGNxvt1tgh75Ml7Io3DptScvU%2FvTGfXUbrXddZw7tjfL5o3hlCcMQ%3D%3D&X-Amz-Signature=c1b554a835f59851f3af63e08b89099f9543d5c2238813efbbcea4a7f08eb9fb&X-Amz-SignedHeaders=host&response-content-disposition=filename%20%3D%22Command%2520Reference%2520for%2520ELMO%2520drivers.pdf%22
+// https://www.st.com/content/ccc/resource/technical/document/user_manual/65/e8/20/db/16/36/45/f7/DM00103685.pdf/files/DM00103685.pdf/jcr:content/translations/en.DM00103685.pdf
+// Other relevant files - lwip.c , stm32f7xx_it.c , ethernetif.c
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,49 +66,42 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-//////////////////////////////////////////////////////// How do I know how to define these variables?
 
 //===================== ETH ============================
-
 ip4_addr_t destIPAddr;
-
 //===================== CAN ============================
-volatile unsigned char CAN_1_Rx_received_flg = 0x00;
-volatile unsigned char CAN_1_RecData[8];
-unsigned long CAN_1_specific_id_test  = 0x00;
-unsigned long CAN_1_temp_id;
-unsigned int  CAN_1_eid;
-unsigned int  CAN_1_sid;
-uint32_t CAN_1_ide;
-uint32_t CAN_1_rtr;
-uint32_t CAN_1_dlc;
-uint32_t CAN_1_fmi;
-volatile unsigned car_state;
-volatile uint32_t tickstart = 0U;
-
-//==================== TIME =========================
+volatile unsigned char CAN_1_Rx_received_flg = 0x00; // Represent that a CAN message has been received
+volatile unsigned char CAN_1_RecData[8];             // An array to hold the data from the CAN message
+unsigned long CAN_1_specific_id_test  = 0x00; // not sure - didn't see it at other parts of the code
+unsigned long CAN_1_temp_id; // not sure - didn't see it at other parts of the code
+unsigned int  CAN_1_eid;                             // Represent that the CAN message has an extended identifier(look up at reference manual)
+unsigned int  CAN_1_sid;							 // Represent that the CAN message has a standard identifier(look up at reference manual)
+uint32_t CAN_1_ide; // not sure
+uint32_t CAN_1_rtr; // not sure
+uint32_t CAN_1_dlc; // not sure
+uint32_t CAN_1_fmi; // not sure
+volatile unsigned car_state;                         // This variable indicates the car's driving state
+volatile uint32_t tickstart = 0U;                    // Defines a 32bit unsigned clock variable
+//===================== TIME ===========================
 volatile unsigned char	Time_1_Ms_Flag = 0x00;
-volatile unsigned char	Time_5_Ms_Flag = 0x00;
-volatile unsigned char	Time_1_Se_Flag = 0x00;
-//==================== KEEP =========================
-volatile unsigned char	Keep_80[16];				//Keep_80[i] indicate if still waiting for a response from unit 'i' to the 0x80 CAN message
-volatile unsigned char	Keep_420[16];				//Keep_420[i] indicate if still waiting for a response from unit 'i' to the 0x420 CAN message
-
-//==================== FLAG =========================
-
+volatile unsigned char	Time_5_Ms_Flag = 0x00;       // This flag elapses every 5ms - used for 420 functions(motor outputs and etc)
+volatile unsigned char	Time_1_Se_Flag = 0x00;       // This flag elapses every 1s - used for 80 message - checks online users
+//===================== KEEP ===========================
+volatile unsigned char	Keep_80[16];				 // Keep_80[i] indicate if still waiting for a response from unit 'i' to the 0x80 CAN message
+volatile unsigned char	Keep_420[16];				 // Keep_420[i] indicate if still waiting for a response from unit 'i' to the 0x420 CAN message
+//===================== FLAG ===========================
 volatile unsigned char brak_flag = 0x00;             // This flag means that the brake pedal is pressed
-volatile unsigned char motor_LEFT = 0x00;            // This flag means that the left motor is on
-volatile unsigned char motor_RIGHT = 0x00;           // This flag means that the left motor is on
-volatile int car_volt = -1;
+volatile unsigned char motor_LEFT = 0x00;            // This flag means that the left motor is on or off
+volatile unsigned char motor_RIGHT = 0x00;           // This flag means that the right motor is on or off
+volatile int car_volt = -1; // not sure - didn't see it at other parts of the code
 extern uint32_t output;                              // This is a value from 0-100 that indicates how much torque is delivered from the EV pedal
 int RPM_r = 0x00;
 int RPM_L = 0x00;
-double motor_temp_r;                                 // Motor temperature?
+double motor_temp_r;                                 // Motor temperature
+//===================== MAIN var =======================
+volatile unsigned int count = 0; // not sure - didn't see it at other parts of the code
+static void init_CAN1_BGR(void);                     // Initiating the CAN module
 
-
-//==================== MAIN var =====================
-volatile unsigned int count = 0;
-static void init_CAN1_BGR(void);                     // Initiating the CAN module?
 static void init_CAN_Filter(void);
 
 /* USER CODE END PV */
@@ -114,7 +115,9 @@ static void MX_CAN1_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
+
 int _write(int file, char *ptr, int len);            // Transmiting some data?
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -147,7 +150,9 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-#if 1
+
+  #if 1 // not sure
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -158,7 +163,9 @@ int main(void)
   MX_CAN1_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-#endif
+
+  #endif
+
 
 #if 0
   /**
@@ -176,34 +183,34 @@ int main(void)
   init_CAN1_BGR();                                     // CAN1 initialize by the user
 #endif
 
-	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD2_Pin , GPIO_PIN_RESET);  // Not sure why is it here?
 
-  //=================== CAN =========================
-  __HAL_CAN_ENABLE_IT(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);        // Enable CAN1 interrupts.
-  HAL_CAN_Start( &hcan1 );                                        // Start the CAN module.
-  #if 1
-  // standart CAN message by elik - Open decelarations to understand meanings
-      CAN1->sTxMailBox[1U].TIR =  ((  0x80   << 21U) |  0);           // Set up the Id
-      /* Set up the DLC */
-      CAN1->sTxMailBox[1U].TDTR &= 0xFFFFFFF0U;
-      CAN1->sTxMailBox[1U].TDTR |= 0x00000008U;
-      /* Set up the data field */
-      CAN1->sTxMailBox[1U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 ); //TDLR=0xAA55AA55
-      CAN1->sTxMailBox[1U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A ); //TDLR=0xA55AA55A
-      /* Request transmission */
-      CAN1->sTxMailBox[1U].TIR  |=  CAN_TI0R_TXRQ;
+  HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD2_Pin , GPIO_PIN_RESET);    //reseting the led and the PB2(the shutdown pin)
+
+  //===================== CAN ============================
+  __HAL_CAN_ENABLE_IT(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);            // Enable CAN1 interrupts.
+  HAL_CAN_Start( &hcan1 );                                            // Start the CAN module.
+ #if 1
+  // Standard CAN message by elik - Open decelerations to understand meanings
+  CAN1->sTxMailBox[1U].TIR =  ((  0x80   << 21U) |  0);               // Set up the Id for an empty mailbox(mailbox 1 in this line)
+  /* Set up the DLC - number of bytes of data being transmitted */
+  CAN1->sTxMailBox[1U].TDTR &= 0xFFFFFFF0U;
+  CAN1->sTxMailBox[1U].TDTR |= 0x00000008U;
+  /* Set up the data field */
+  CAN1->sTxMailBox[1U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 ); //TDLR=0xAA55AA55
+  CAN1->sTxMailBox[1U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A ); //TDHR=0xA55AA55A
+  /* Request transmission bit - look up reference manual */
+  CAN1->sTxMailBox[1U].TIR  |=  CAN_TI0R_TXRQ;
+ #endif
+
+  //===================== ETH ============================
+  IP4_ADDR(&destIPAddr,192,168,1,49);               // Set an IP address for the ETHERNET?
+
+  //Start_Motor_1(); //set motor off
+  //Start_Motor_2(); //set motor off
+
+  #if 1 //debug
+   car_state = NUTRAL;                              // initial the state; TODO write the value to the flash a
   #endif
-
-//====================== ETH ========================
-IP4_ADDR(&destIPAddr,192,168,1,49);                  // Set an IP address for the ETHERNET?
-
-//Start_Motor_1(); //set motor off
-//Start_Motor_2(); //set motor off
-
-
-#if 1 //debug
-car_state = NUTRAL;                                 // initial the state; TODO write the value to the flash a
-#endif
 
   /* USER CODE END 2 */
 
@@ -212,74 +219,69 @@ car_state = NUTRAL;                                 // initial the state; TODO w
 while(1){
 
 	//if(can_reacive)
-	//get meassage
 
-	if( Time_5_Ms_Flag ){                           // Something to do every 5ms?
+	//get message
+
+	if(Time_5_Ms_Flag){                             // "Driving Loop" - every 5ms check the APPS state
 		Time_5_Ms_Flag = 0x00;                      // Flag reset
- 		if(Keep_420[1] == 0x00){                    // Not sure?
-     		Keep_420[1] = 0x01;                     // Not sure?
+ 		
+    if(Keep_420[1] == 0x00){  // checking if still waiting for response to 420 message  (if still waiting flag is on (1)) 
+     		Keep_420[1] = 0x01;   //turning the 420 flag on before sending it again
  		}
  		else{
- 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure why to right this pin..
+ 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // if 420 flag is still on, turning the shutdown pin on
  		}
 
-
-		// standart CAN 420 message by elik - ***Need to write what is 420 message***
-		CAN1->sTxMailBox[0U].TIR =  ((  0x420   << 21U) |  0);           // Set up the Id
-		/* Set up the DLC */
+		// standard CAN 420 message by elik - Check the pedals state from the APPS's STM
+		CAN1->sTxMailBox[0U].TIR =  ((  0x420   << 21U) |  0);       // Set up the Id for an empty mailbox(mailbox 0 in this line)
+		/* Set up the DLC - number of bytes of data being transmitted */
 		CAN1->sTxMailBox[0U].TDTR &= 0xFFFFFFF0U;
 		CAN1->sTxMailBox[0U].TDTR |= 0x00000000U;
 		/* Set up the data field */
 		//CAN1->sTxMailBox[0U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 );
 		//CAN1->sTxMailBox[0U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A );
-		/* Request transmission */
+		/* Request transmission bit - look up reference manual */
 		CAN1->sTxMailBox[0U].TIR  |=  CAN_TI0R_TXRQ;
-
 	}
-	if( Time_1_Se_Flag ){                           // Something to do every 1 Sec?
-		Time_1_Se_Flag = 0x00;                      // Flag reset
- 		if(Keep_80[1] == 0x00){                     // Not sure?
-     		Keep_80[1] = 0x01;                      // Flag reset?
+	if(Time_1_Se_Flag){                             //every 1 second:
+		Time_1_Se_Flag = 0x00;                      // reset 1 second flag
+ 		if(Keep_80[1] == 0x00){                     //  check if the ECU is waiting for a 80 message
+     		Keep_80[1] = 0x01;                      // setting the 80 flag on
  		}
  		else{
- 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET); // Not sure?
+ 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   //if didnt get 80 response turning on led and shutdown pin
  		}
 
-
-		// standart CAN 80 message by elik ***Need to write what is 80 message***
-		CAN1->sTxMailBox[1U].TIR =  ((  0x80   << 21U) |  0);           // Set up the Id
-		/* Set up the DLC */
+		// standard CAN 80 message by elik - Check if the other STM's on the CAN network are connected
+		CAN1->sTxMailBox[1U].TIR =  ((  0x80   << 21U) |  0);        // Set up the Id for an empty mailbox(mailbox 1 in this line)
+		 /* Set up the DLC - number of bytes of data being transmitted */
 		CAN1->sTxMailBox[1U].TDTR &= 0xFFFFFFF0U;
 		CAN1->sTxMailBox[1U].TDTR |= 0x00000008U;
 		/* Set up the data field */
-		CAN1->sTxMailBox[1U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 );
-		CAN1->sTxMailBox[1U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A );
-		/* Request transmission */
+		CAN1->sTxMailBox[1U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 ); //TDLR=0xAA55AA55
+		CAN1->sTxMailBox[1U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A ); //TDHR=0xA55AA55A
+		/* Request transmission bit*/     // seting the transmiting bit on to let the can mailbox that the message can be sent
 		CAN1->sTxMailBox[1U].TIR  |=  CAN_TI0R_TXRQ;
 
-		/* ask for motor state */
-		ASK_Motor_1();
-		ASK_Motor_2();
-
-
-		if(car_state != DRIVE){
-			send_msg_to_dest(0);
-			send_msg_to_dest2(0);
+    /* ask for motor state */
+		ASK_Motor_1();                              // Ask for motor 1 state
+		ASK_Motor_2();                              // Ask for motor 2 state
+		
+    if(car_state != DRIVE){                     // If the car is not in DRIVE STATE => send 0 torque to the motors
+			send_msg_to_dest(0);                    // Send 0 torque to motor right
+			send_msg_to_dest2(0);                   // Send 0 torque to motor left
 		}
-
-		if(motor_RIGHT == 0 )
-			Start_Motor_1();
-
-		if(motor_LEFT == 0 )
-			Start_Motor_2();
+		if(motor_RIGHT == 0)                        // If motor right is off => start it(not sure why every second, what if the car is at SAFE STATE?)
+			Start_Motor_1();                        // Start motor right
+		if(motor_LEFT == 0)                         // If motor left is off => start it(not sure why every second, what if the car is at SAFE STATE?)
+			Start_Motor_2();                        // Start motor left
 
 		ASK_Motor_RPM_L();
 		ASK_Motor_RPM_r();
 		ASK_Motor_temp_R();
 
 
-
-
+        // Prints to the console
 		printf("\n");
 		printf("\n");
 		printf("\r car_state 	= 	%d \n" ,car_state);
@@ -296,75 +298,66 @@ while(1){
 		printf("\n");
 	}
 
+	MX_LWIP_Process();                              // not sure
 
-
-	MX_LWIP_Process();
-
+	// Car state menu
 	switch(car_state) // set the car state -- idle ready to drive
 	{
 	case NUTRAL:
-		//if button is push and pedal value is on then move to IGNITION_TO_DRIVE
-		if((HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin)==0) && brak_flag) //=> Button is Pressed
-			if(motor_LEFT  == 0 || motor_RIGHT == 0){
+		if((HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin)==0) && brak_flag)  // Check if Ready2Drive && brake pedal are pressed
+			if(motor_LEFT  == 0 || motor_RIGHT == 0){                            // If one of the motor is off => start them and stay at NUTRAL for 200ms
 				car_state = NUTRAL;
 				printf("\r Start_Motor \n");
-				Start_Motor_1(); //set motor on
-				Start_Motor_2(); //set motor on
-				HAL_Delay(200);
+				Start_Motor_1(); 												 // Set motor right on
+				Start_Motor_2(); 												 // Set motor left on
+				HAL_Delay(200);                                                  // Creates a 200ms delay(not sure why 200)
 			}
-			else
+			else                                                                 // If the motors are on => move to IGNITION2DRIVE state
 			{
 				//printf("\r IGNITION_TO_DRIVE \n");
 				car_state = IGNITION_TO_DRIVE;
-				tickstart = HAL_GetTick();
+				tickstart = HAL_GetTick();                                       // Start a timer for the ignition state
 			}
-
-
-
 		//set motor on
-		break;
+	break;
 	case IGNITION_TO_DRIVE:
-		if((HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin)==0) && brak_flag ){// && motor_RIGHT && motor_LEFT){ //=> Button is Pressed
-			 if ((HAL_GetTick() - tickstart) > 3000U){
+		if((HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin)==0) && brak_flag){ // Check if Ready2Drive && brake pedal are pressed
+			 if ((HAL_GetTick() - tickstart) > 3000U){                           // If Ready2Drive && brake pedal are pressed for 3s => move to BUZZER state
 					car_state = BUZZER;
-					tickstart = HAL_GetTick();
+					tickstart = HAL_GetTick();                                   // Start a timer for the BUZZER state
 				}
 		}
-		else
+		else                                                                     // If the buttons are released => return to NUTRAL state
 			car_state = NUTRAL;
-
-		//if button is push and pedal value is on and motor state is MO=1 then waite for 100 iteration , and then move to ready to drive state
-		break;
+		//if button is push and pedal value is on and motor state is MO=1 then wait for 100 iteration, and then move to ready to drive state
+	break;
 	case BUZZER:
-		 HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_SET);			//turn buzzer on
-		 if ((HAL_GetTick() - tickstart) > 2000U){										//check how much time elapse
-			 HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_RESET);	//turn buzzer off
-			 car_state = DRIVE; }
-		break;
+		 HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_SET);			// turn buzzer ON
+		 if ((HAL_GetTick() - tickstart) > 2000U){										// If 2s have elapsed
+			 HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_RESET);	// Turn buzzer OFF
+			 car_state = DRIVE;                                                         // Proceed to DRIVE state
+		 }
+	break;
+  // This is the where the MAIN LOOP occurs, while driving the STM receives values from the pedals
+  // and transmit them to the motor by FIFO0 interrupts(look up stm32f7xx_it.c file)
 	case DRIVE:
-		if(motor_RIGHT == 0 || motor_LEFT == 0){
+		if(motor_RIGHT == 0 || motor_LEFT == 0){                                 // If one of the motors doesn't work => go to Safe State
 			car_state = ERROR_state;
-			tickstart = HAL_GetTick();
+			tickstart = HAL_GetTick();                                           // Start a timer for the Safe State
 		}
-
-		break;
+	break;
 	case ERROR_state:
-	if(motor_RIGHT == 1 && motor_LEFT == 1)
-				car_state = DRIVE;
-	if ((HAL_GetTick() - tickstart) > 5000U)
-		 car_state = NUTRAL;
-
-	 break;
-
+  // NEED TO VERIFY THAT THIS STATE IS DEFINED AS THE RULES SAY(SCS for example)
+		if(motor_RIGHT == 1 && motor_LEFT == 1)                                  // If the motors work => return to DRIVE state
+			car_state = DRIVE;
+		if ((HAL_GetTick() - tickstart) > 5000U)                                 // If 5sec has passed in Safe State => return to NUTRAL state
+			car_state = NUTRAL;
+	break;
 	}
-
-
 
   //HAL_Delay(1000);
   //send_msg_to_start_L();
   //send_msg_to_start_R();
-
-
 
 
 #if 0
@@ -687,8 +680,10 @@ static void MX_GPIO_Init(void)
 
 /** static void init_CAN1_BGR(void)
  * CAN1 properties set by Elik Rubin
+ * not in use but its a good reference for CAN properties
  */
-static void init_CAN1_BGR(void){                // Initiating the CAN module?
+static void init_CAN1_BGR(void){                
+
 
 	  hcan1.Instance = CAN1;
 	  hcan1.Init.Prescaler = 3;
@@ -713,6 +708,7 @@ static void init_CAN1_BGR(void){                // Initiating the CAN module?
  * Can filter properties set by Elik Rubin
  */
 static void init_CAN_Filter(void){
+
 	CAN_FilterTypeDef FilterConfig;
 		  FilterConfig.FilterIdHigh = 0xFFFFU;
 		  FilterConfig.FilterIdLow  = 0xFFFFU;
@@ -727,7 +723,6 @@ static void init_CAN_Filter(void){
 
 		  HAL_CAN_ConfigFilter( &hcan1,  &FilterConfig );
 }
-
 
 int _write(int file, char *data, int len)
 {
