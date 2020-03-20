@@ -127,8 +127,8 @@ void Error_Handler(void);
 #define APPS_0_MIN		709
 #define APPS_0_MAX		2300
 
-#define APPS_1_MIN		0
-#define APPS_1_MAX		0xFFFF
+#define APPS_1_MIN		0										// Need to measure the true values
+#define APPS_1_MAX		0xFFFF									// Need to measure the true values
 
 #define APPS_2_MIN		0
 #define APPS_2_MAX		0
