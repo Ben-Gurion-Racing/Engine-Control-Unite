@@ -86,6 +86,7 @@ volatile uint32_t tickstart = 0U;                    // Defines a 32bit unsigned
 volatile unsigned char	Time_1_Ms_Flag = 0x00;
 volatile unsigned char	Time_5_Ms_Flag = 0x00;       // This flag elapses every 5ms - used for 420 functions(motor outputs and etc)
 volatile unsigned char	Time_500_Ms_Flag = 0x00;     // This flag elapses every 0.5s - used for 80 message - checks online users
+volatile unsigned int	WatchDog_420=0;
 //===================== KEEP ===========================
 volatile unsigned char	Keep_80[16];				 // Keep_80[i] indicate if still waiting for a response from unit 'i' to the 0x80 CAN message
 volatile unsigned char	Keep_420[16];				 // Keep_420[i] indicate if still waiting for a response from unit 'i' to the 0x420 CAN message
@@ -177,7 +178,7 @@ int main(void)
   init_CAN1_BGR();                                     // CAN1 initialize by the user
 #endif
 
-  HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD2_Pin , GPIO_PIN_RESET);    // not sure - maybe shutdown pin?
+  HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD2_Pin , GPIO_PIN_RESET);    // not sure
 
   //===================== CAN ============================
   __HAL_CAN_ENABLE_IT(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);            // Enable CAN1 interrupts.
@@ -218,13 +219,15 @@ while(1){
 		Time_5_Ms_Flag = 0x00;                      // Flag reset
  		if(Keep_420[1] == 0x00){  					// If the ECU is not already waiting for a 420 message answer(421 message) => make it wait for one
      		Keep_420[1] = 0x01;   					// Set the the flag to 1 => ECU is waiting for a 420 message answer
+     		WatchDog_420=0;							// Reset 420 delay watchdog
  		}
  		else{										// Else there is a delay of more than 5ms for the 420 message => open shutdown
  			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 5ms?
  			// Change this pin to LED so we can identify this problem?
- 			// OpenShutDownError();								// Enter Safe state and open shut down circuit
- 			// NOTE: This needs to be checked because 5ms delay for shutdown is a very small amount of time, the rules enables up to 500ms delay
- 		}
+ 			WatchDog_420++;							// Count 420 delay watchdog for every 5ms
+ 			if (WatchDog_420>20)					// If 100ms has elapsed => open shutdown circuit
+ 				OpenShutDownError();				// Enter Safe state and open shut down circuit
+ 	 		}
 
 		// standard CAN 420 message by elik - Check the pedals state from the APPS's STM
 		CAN1->sTxMailBox[0U].TIR =  ((  0x420   << 21U) |  0);       // Set up the Id for an empty mailbox(mailbox 0 in this line)
@@ -349,6 +352,7 @@ while(1){
 		}
 		else																	 // Open shutdown circuit
 			ErrorState=ERROR_OpenSHTDWN;
+			OpenShutDownError();	   								 // Enter Safe state and open shut down circuit
 			// Need to add an open shutdown circuit pin here
 			// HAL_GPIO_WritePin( GPIOB , GPIO_PIN_5 , GPIO_PIN_SET); // Need to choose a free pin
 	break;
@@ -625,7 +629,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2|LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2|GPIO_PIN_10|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_RESET);
@@ -639,8 +643,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB2 LD2_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_2|LD2_Pin;
+  /*Configure GPIO pins : PB2 PB10 LD2_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_10|LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

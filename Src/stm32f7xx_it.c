@@ -104,12 +104,12 @@ extern volatile unsigned char brak_flag ;                    // This flag means 
 extern volatile unsigned car_state;                          // This variable indicates the car's driving state
 //================ APPS VALIDATION =====================
 /*--T11.9.2(c) Failures of sensor signals used in programmable devices--*/
-const uint16_t appsMax[3] = {
+const uint16_t appsMaxThreshold[3] = {
 		APPS_0_MAX,	                                         // The max value of APPS 0 in its mechanical range of movement
 		APPS_1_MAX,											 // The max value of APPS 1 in its mechanical range of movement
 		APPS_2_MAX                                           // Currently not in use, for future purpose
 };
-const uint16_t appsMin[3] = {
+const uint16_t appsMinThreshold[3] = {
 		APPS_0_MIN,	                                         // The min value of APPS 0 in its mechanical range of movement
 		APPS_1_MIN,	                                         // The min value of APPS 1 in its mechanical range of movement
 		APPS_2_MIN                                           // Currently not in use, for future purpose
@@ -264,31 +264,33 @@ void CAN1_RX0_IRQHandler(void)
 					}
 					else{		// Check The APPS
 						// T11.9.2.b - short circuit to supply voltage
-						if(apps[0] > ERROR_APPS_MAXVALUE){
-							printf("CAN1_Rx IT: ERROR_APPS0_MAXVALUE");
-							OpenShutDownError();								// Enter Safe state and open shut down circuit
-						}
-						else if(apps[1] > ERROR_APPS_MAXVALUE ){
-							printf("CAN1_Rx IT: ERROR_APPS1_MAXVALUE");
-							OpenShutDownError();								// Enter Safe state and open shut down circuit
-						}
+						//if(apps[0] > ERROR_APPS_MAXVALUE){
+						//	printf("CAN1_Rx IT: ERROR_APPS0_MAXVALUE");
+						//	OpenShutDownError();								// Enter Safe state and open shut down circuit
+						//}
+						//else if(apps[1] > ERROR_APPS_MAXVALUE ){
+						//	printf("CAN1_Rx IT: ERROR_APPS1_MAXVALUE");
+						//	OpenShutDownError();								// Enter Safe state and open shut down circuit
+						//}
+						// T11.9.2.a - short circuit to ground - detecting ~0 Voltage from sensors
+						// T11.9.2.b - short circuit to supply voltage - - detecting ~5 Voltage from sensors
 						// T11.9.2.c - Implausibility due to out of range signals, e.g. mechanically impossible angle of an angle sensor
-						else if (   apps[0] > appsMax[0]
-								 ||	apps[0] < appsMin[0]
-								 || apps[1] > appsMax[1]
-								 || apps[1] < appsMin[1] ){
+						if (   apps[0] > (1.1*appsMaxThreshold[0])
+								 ||	apps[0] < (0.9*appsMinThreshold[0])
+								 || apps[1] > (1.1*appsMaxThreshold[1])
+								 || apps[1] < (0.9*appsMinThreshold[1]) ){
 							printf("CAN1_Rx IT: Mechanical plausibility check failed");
 							OpenShutDownError();								// Enter Safe state and open shut down circuit
 						}
 						// T11.9.2.a - short circuit to ground
-						else if (   apps[0] < ERROR_SHRT_CIRC_TO_GRND ){        // The value needs to be checked if it does represent short circuit to ground
-							printf("CAN1_Rx IT: Short circuit to ground for APPS0");
-							OpenShutDownError();								// Enter Safe state and open shut down circuit
-						}
-						else if (   apps[1] < ERROR_SHRT_CIRC_TO_GRND ){        // The value needs to be checked if it does represent short circuit to ground
-							printf("CAN1_Rx IT: Short circuit to ground for APPS1");
-							OpenShutDownError();								// Enter Safe state and open shut down circuit
-						}
+						//else if (   apps[0] < ERROR_SHRT_CIRC_TO_GRND ){        // The value needs to be checked if it does represent short circuit to ground
+						//	printf("CAN1_Rx IT: Short circuit to ground for APPS0");
+						//	OpenShutDownError();								// Enter Safe state and open shut down circuit
+						//}
+						//else if (   apps[1] < ERROR_SHRT_CIRC_TO_GRND ){        // The value needs to be checked if it does represent short circuit to ground
+						//	printf("CAN1_Rx IT: Short circuit to ground for APPS1");
+						//	OpenShutDownError();								// Enter Safe state and open shut down circuit
+						//}
 						else//drive :)
 						{
 							#if 0	//this will be the next output calculation (by Avishai)
@@ -430,6 +432,7 @@ inline void getOutput(int apps_i){
 inline void OpenShutDownError(){
 	car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
 	ErrorState=ERROR_OpenSHTDWN;
+	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_10 , GPIO_PIN_SET);		// PB10 =1; need to check if tis works for open shutdown
 }
 
 /* USER CODE END 1 */

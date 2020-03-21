@@ -28,6 +28,10 @@
 /* USER CODE BEGIN 0 */
 #include "lwip/udp.h"
 #include  <math.h>
+
+// Reference:
+// https://www.st.com/resource/en/user_manual/dm00103685-developing-applications-on-stm32cube-with-lwip-tcpip-stack-stmicroelectronics.pdf
+
 /* USER CODE END 0 */
 /* Private function prototypes -----------------------------------------------*/
 /* ETH Variables initialization ----------------------------------------------*/
