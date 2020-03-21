@@ -387,7 +387,7 @@ while(1){
 
   } // not sure that these suppose to be here
   /* USER CODE END 3 */
-}  // not sure that these suppose to be here
+}
 
 /**
   * @brief System Clock Configuration

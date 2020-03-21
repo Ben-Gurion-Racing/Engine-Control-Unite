@@ -132,7 +132,6 @@ int ErrorState;												 // There are 2 cases of errors at Safe state detaile
 /* External variables --------------------------------------------------------*/
 extern ETH_HandleTypeDef heth;
 extern CAN_HandleTypeDef hcan1;
-
 /* USER CODE BEGIN EV */
 /* USER CODE END EV */
 
@@ -142,7 +141,7 @@ extern CAN_HandleTypeDef hcan1;
 /**
   * @brief This function handles System tick timer.
   */
-void SysTick_Handler(void)                            // This is the timer interrupt
+void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
 	Time_1_Ms_Counter++;

@@ -29,10 +29,6 @@
 #include "lwip/udp.h"
 #include  <math.h>
 /* USER CODE END 0 */
-
-// LWIP Reference:
-// https://www.st.com/content/ccc/resource/technical/document/user_manual/65/e8/20/db/16/36/45/f7/DM00103685.pdf/files/DM00103685.pdf/jcr:content/translations/en.DM00103685.pdf
-
 /* Private function prototypes -----------------------------------------------*/
 /* ETH Variables initialization ----------------------------------------------*/
 void Error_Handler(void);
@@ -621,13 +617,13 @@ void MX_LWIP_Init(void)
   create_udp_socket2();
   create_udp_socket();
   printf("\rcreate udp socket\n");
-}
+
 
 
 
 
 /* USER CODE END 3 */
-
+}
 
 #ifdef USE_OBSOLETE_USER_CODE_SECTION_4
 /* Kept to help code migration. (See new 4_1, 4_2... sections) */
