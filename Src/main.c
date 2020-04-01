@@ -38,7 +38,7 @@
 // https://s3.us-west-2.amazonaws.com/secure.notion-static.com/2d9ef1b5-4c83-45ac-8248-e25a7c62fbe6/MAN-G-CR.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAT73L2G45PJP3TSGT%2F20200301%2Fus-west-2%2Fs3%2Faws4_request&X-Amz-Date=20200301T215231Z&X-Amz-Expires=86400&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEEMaCXVzLXdlc3QtMiJIMEYCIQDvLvdFmWJIns%2BzEcaxYaUIc3V1ZRSdHHLISQlI5pBAJQIhAIUxmJt55WN44353wgPZqdxYCo7MePuPUHpivgwMJYVJKrQDCBwQABoMMjc0NTY3MTQ5MzcwIgzMkJtShobXrR9VGuAqkQNq0MlyzJc73Cj%2BgiqVLmqP0GJ5q%2BK0og5KNiOetQDppGhYSL0VzfcPiPP5jK4ISiPGI%2BdVK6x3l8K%2Bdwj%2B%2FGRrqLfY9cVeGG94ADHTJHRHhIK9eLwSov%2FAp%2BExDJWxaIsZr%2FXy%2BOZt%2BfvEQMSvr1JjEoxvigmy7z0SgwXAYqhESKYYpCYZiE3bR9enUWf9TGXUqC1QNYj6VWW90SQA%2F5DGbzqxtHFu0pmSXtg5n%2BxBnz%2BGs5isyaXhonQkY7fOApFiuG7XIkiel5GxWmcTZ4pMue5%2FJi9V5Be5IUgK4pxriHd3aOG297lOEUSCKSrgB0KQYAYoUkRE7A%2Fe6t0l8FWlEilYm6qhoAvSZ0lc%2FWfx9pIDmN7KNlr3PyPnFQtJZZEjbK9%2FO9Guxk6GUGLmwEVZAS%2FDhtoKg7vJgFJ6m8tjJUxbvYtXyKOnDLFITf%2FBtmWzOpbAP1YYsngb2Qddm%2F87MNAaNZ4cSve9DFFmd5Y%2FrHYqCaU5Mjvob%2Fxq3ExyXJsTAQb5QV04YLouTxSTPYi1dzCfgPDyBTrqAYXPtKBg0qdtxWv4SqCyy6ubed155k80J%2BRc04edkuBfZbx%2FtO%2BMD1KEZt2Y3QkC1bcsQqWGPMXcslcoFvzlX%2BU%2BqlFJ0usmqkYIszPWYlDCSgukn9UPpYA%2F%2Fx8pNe%2FGHvfQqY5Bpe2EYHQfgLESObtX123swAhdLyaHFQmXU4obL7m8PeLLAFBxrtTGHizo%2Bg1JHnoGsH51O6Zj4CmWihxISfQQRRtd%2B0INVKjjaL7sCOnTweRR3XiLhR96iFUkQYrtQaGNxvt1tgh75Ml7Io3DptScvU%2FvTGfXUbrXddZw7tjfL5o3hlCcMQ%3D%3D&X-Amz-Signature=c1b554a835f59851f3af63e08b89099f9543d5c2238813efbbcea4a7f08eb9fb&X-Amz-SignedHeaders=host&response-content-disposition=filename%20%3D%22Command%2520Reference%2520for%2520ELMO%2520drivers.pdf%22
 // https://www.st.com/content/ccc/resource/technical/document/user_manual/65/e8/20/db/16/36/45/f7/DM00103685.pdf/files/DM00103685.pdf/jcr:content/translations/en.DM00103685.pdf
 // Other relevant files - lwip.c , stm32f7xx_it.c , ethernetif.c
-
+// !!!Elmo's code is attached at the end of this file!!!
 
 /* USER CODE END Includes */
 
@@ -94,6 +94,8 @@ volatile unsigned char	Keep_420[16];				 // Keep_420[i] indicate if still waitin
 volatile unsigned char brak_flag = 0x00;             // This flag means that the brake pedal is pressed
 volatile unsigned char motor_LEFT = 0x00;            // This flag means that the left motor is on or off
 volatile unsigned char motor_RIGHT = 0x00;           // This flag means that the right motor is on or off
+volatile unsigned char UI2_R = 0x00;						 // This flag is a watchdog for Elmo right delay of messages
+volatile unsigned char UI2_L = 0x00;						 // This flag is a watchdog for Elmo right delay of messages
 volatile int car_volt = -1; // not sure - didn't see it at other parts of the code
 extern uint32_t output;                              // This is a value from 0-100 that indicates how much torque is delivered from the EV pedal
 int RPM_r = 0x00;
@@ -217,6 +219,8 @@ while(1){
 
 	if(Time_5_Ms_Flag){                             // "Driving Loop" - every 5ms check the APPS state
 		Time_5_Ms_Flag = 0x00;                      // Flag reset
+		ResetElmoRFlag();							// Set the loss of connection flag at the Elmo right, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
+		ResetElmoLFlag();							// Set the loss of connection flag at the Elmo left, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
  		if(Keep_420[1] == 0x00){  					// If the ECU is not already waiting for a 420 message answer(421 message) => make it wait for one
      		Keep_420[1] = 0x01;   					// Set the the flag to 1 => ECU is waiting for a 420 message answer
      		WatchDog_420=0;							// Reset 420 delay watchdog
@@ -242,14 +246,35 @@ while(1){
 	}
 	if(Time_500_Ms_Flag){                           // This section prints car & motor state to the console(to the user)
 		Time_500_Ms_Flag = 0x00;                    // Flag reset
- 		if(Keep_80[1] == 0x00){                     // not sure? maybe check if the ECU is waiting for a 80 message?
-     		Keep_80[1] = 0x01;                      // not sure? maybe if its not waiting - than flag that it is waiting for a 80 message?
+ 		if(Keep_80[1] == 0x00){                     // If the ECU is not already waiting for a 80 message answer(81 message) => make it wait for one
+     		Keep_80[1] = 0x01;                      // Set the the flag to 1 => ECU is waiting for a 80 message answer
  		}
  		else{
  			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
  			// Change this pin to LED so we can identify this problem?
- 			OpenShutDownError();	   								 // Enter Safe state and open shut down circuit
+ 			OpenShutDownError();	   				// Enter Safe state and open shut down circuit
  		}
+
+ 		// Check Delay of ETHERNET messages with the Elmos
+ 		AskDelayWatchDogR();
+ 		AskDelayWatchDogL();
+ 		if (UI2_R==0)								// The Elmo right sets the UI[2] register to 0 every 10ms, this condition finds out if after 500ms the Elmo right didn't work
+ 			UI2_R=1;								// This flag means that the ECU is waiting for a response from the Elmo Right
+ 		else
+ 		{
+ 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
+ 			// Change this pin to LED so we can identify this problem?
+ 			OpenShutDownError();	   			    // Enter Safe state and open shut down circuit
+ 		}
+ 		if (UI2_L==0)								// The Elmo right sets the UI[2] register to 0 every 10ms, this condition finds out if after 500ms the Elmo right didn't work
+ 			UI2_L=1;								// This flag means that the ECU is waiting for a response from the Elmo Right
+ 		else
+ 		{
+ 			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
+ 			// Change this pin to LED so we can identify this problem?
+ 			OpenShutDownError();	   				// Enter Safe state and open shut down circuit
+ 		}
+
 
 		// standard CAN 80 message by elik - Check if the other STM's on the CAN network are connected
 		CAN1->sTxMailBox[1U].TIR =  ((  0x80   << 21U) |  0);        // Set up the Id for an empty mailbox(mailbox 1 in this line)
@@ -754,6 +779,23 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+
+	//!!! Elmo code !!!//
+	//function main()
+	//
+	//	ui[1]=0;
+	//	while (1)
+	//		ui[1]=ui[1]+1;			// The ECU resets this register every 5ms
+	//		wait(10);                          // Wait 10ms
+	//		if ui[1]>50				// If 500ms elapsed without contact from ECU
+	//			mo=0;				// Motor off regardless of what happens at the ECU
+	//		end
+	//		ui[2]=0;					// Every 10ms reset the ECU "ui[2] delay flag"
+	//	end
+	//
+	//return
+	// !!! End of Elmo code !!!//
+
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
