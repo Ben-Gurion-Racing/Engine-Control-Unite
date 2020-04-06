@@ -196,6 +196,7 @@ void CAN1_RX0_IRQHandler(void)
 	uint32_t rf0rflags = READ_REG(CAN1->RF0R);   // not sure
 	uint32_t rf1rflags = READ_REG(CAN1->RF1R);   // not sure
 	uint32_t esrflags = READ_REG(CAN1->ESR);     // not sure
+	uint32_t LEC_Flag=READ_BIT(CAN1->ESR,CAN_ESR_LEC);							// Read the error bits of the error register(checksum error bits and etc in reference manual)
 
   // Receive FIFO 0 message pending interrupt management - definition in reference manual page  1552
   if ((interrupts & CAN_IT_RX_FIFO0_MSG_PENDING) != 0U)  // Check if the interrupt came due to a FIFO message interrupt on FIFO 0 register
@@ -248,6 +249,8 @@ void CAN1_RX0_IRQHandler(void)
 					// Error of APPS BPPS timeout received from the pedal STM => open shut down circuit
 					OpenShutDownError();								// Enter Safe state and open shut down circuit
 				}
+				else if (LEC_Flag!=0)											// If there was a checksum error => open shutdown circuit
+					OpenShutDownError();
 				else                                                            // A sampled was received from the APPS
 				{
 					output = 0;
@@ -343,6 +346,8 @@ void CAN1_RX0_IRQHandler(void)
 			break;
 			case 0x81  :                                                        // Indicate there is a communication between the ECU and PU
 			//HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD3_Pin , GPIO_PIN_SET);
+			   if (LEC_Flag!=0)													// If there was a checksum error => open shutdown circuit
+					OpenShutDownError();
 			   if( (CAN_1_RecData[0] == 0x55)									// if the message data is 0x5555555555555555 => reset flag
 					   && (CAN_1_RecData[1] == 0x55)
 					   && (CAN_1_RecData[2] == 0x55)

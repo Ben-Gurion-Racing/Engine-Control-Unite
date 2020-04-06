@@ -50,6 +50,8 @@ struct pbuf *pp;                                   // Packet buffer struct used 
 //==================== FLAG =========================
 extern volatile unsigned char motor_RIGHT ;
 extern volatile unsigned char motor_LEFT ;
+extern volatile unsigned char UI2_R;
+extern volatile unsigned char UI2_L;
 extern volatile int car_volt; // not sure - didn't see it at other parts of the code
 extern int RPM_r ;
 extern int RPM_L ;
