@@ -241,7 +241,7 @@ while(1){
 		//CAN1->sTxMailBox[0U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 );
 		//CAN1->sTxMailBox[0U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A );
 		/* Request transmission bit - look up reference manual */
-		CAN1->sTxMailBox[0U].TIR  |=  CAN_TI0R_TXRQ;
+ 		CAN1->sTxMailBox[0U].TIR  |=  CAN_TI0R_TXRQ;
 	}
 	if(Time_1_Se_Flag){                             //every 1 second:
 		Time_1_Se_Flag = 0x00;                      // reset 1 second flag

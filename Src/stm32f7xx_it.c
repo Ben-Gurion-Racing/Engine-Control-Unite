@@ -131,6 +131,9 @@ extern CAN_HandleTypeDef hcan1;    // not sure why its here, defined at row 133 
 
 int msec_5 = 0;
 
+//=============== DEBUG =================
+int printOutput_flag = 0;
+
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -196,7 +199,7 @@ void CAN1_TX_IRQHandler(void)
 void CAN1_RX0_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_RX0_IRQn 0 */
-	uint32_t errorcode = HAL_CAN_ERROR_NONE;     // not sure
+                        	uint32_t errorcode = HAL_CAN_ERROR_NONE;     // not sure
 	uint32_t interrupts = READ_REG(CAN1->IER);   // not sure
 	uint32_t msrflags = READ_REG(CAN1->MSR);     // not sure
 	uint32_t tsrflags = READ_REG(CAN1->TSR);     // not sure
@@ -287,7 +290,7 @@ void CAN1_RX0_IRQHandler(void)
 							// therefore they are compleating each other to 100%
 							getOutput(0); 									//put the travel precentage of APPS0 in appsOutput[0]
 							getOutput(1); 									//put the travel precentage of APPS1 in appsOutput[1]
-							if( ( appsOutput[0] + appsOutput[1] ) < 90)		//T11.8.9 : Implausibility is defined as a deviation of more than ten percentage points pedal travel between any of the used APPSs
+							if( ( appsOutput[0] + appsOutput[1] ) < 90 )		//T11.8.9 : Implausibility is defined as a deviation of more than ten percentage points pedal travel between any of the used APPSs
 								output = 0;
 							else
 								output = appsOutput[0];
@@ -321,6 +324,13 @@ void CAN1_RX0_IRQHandler(void)
 
 						//send_msg_to_dest2_temp( output);
 					}
+#if DEBUG_MODE
+					printOutput_flag ++;
+					if(printOutput_flag >= 100){
+						printOutput_flag = 0;
+						printf("output= %d \n",(int)output);
+					}
+#endif
 				}
 			break;
 

@@ -127,8 +127,9 @@ void Error_Handler(void);
 #define APPS_0_MIN		709
 #define APPS_0_MAX		2300
 
-#define APPS_1_MIN		0
-#define APPS_1_MAX		0xFFFF
+#define APPS_1_MIN		1796
+#define APPS_1_MAX		3387 //test mode, not final
+//1591 is the pedal range
 
 #define APPS_2_MIN		0
 #define APPS_2_MAX		0
@@ -142,7 +143,8 @@ void Error_Handler(void);
 #define ERROR_BPPS              0xFF
 #define ERROR_APPS_BPPS_TIMEOUT 0xFF
 
-
+//=========== Debug ===============
+#define DEBUG_MODE 1
 
 /* USER CODE END Private defines */
 
