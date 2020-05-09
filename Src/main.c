@@ -72,8 +72,8 @@ ip4_addr_t destIPAddr;
 //===================== CAN ============================
 volatile unsigned char CAN_1_Rx_received_flg = 0x00; // Represent that a CAN message has been received
 volatile unsigned char CAN_1_RecData[8];             // An array to hold the data from the CAN message
-unsigned long CAN_1_specific_id_test  = 0x00; // not sure - didn't see it at other parts of the code
-unsigned long CAN_1_temp_id; // not sure - didn't see it at other parts of the code
+unsigned long CAN_1_specific_id_test  = 0x00; 		 // not sure - didn't see it at other parts of the code
+unsigned long CAN_1_temp_id;						 // For future temperature sensor
 unsigned int  CAN_1_eid;                             // Represent that the CAN message has an extended identifier(look up at reference manual)
 unsigned int  CAN_1_sid;							 // Represent that the CAN message has a standard identifier(look up at reference manual)
 uint32_t CAN_1_ide; 								 // CAN definitions - check manual reference
@@ -94,16 +94,16 @@ volatile unsigned char	Keep_420[16];				 // Keep_420[i] indicate if still waitin
 volatile unsigned char brak_flag = 0x00;             // This flag means that the brake pedal is pressed
 volatile unsigned char motor_LEFT = 0x00;            // This flag means that the left motor is on or off
 volatile unsigned char motor_RIGHT = 0x00;           // This flag means that the right motor is on or off
-volatile unsigned char UI2_R = 0x00;						 // This flag is a watchdog for Elmo right delay of messages
-volatile unsigned char UI2_L = 0x00;						 // This flag is a watchdog for Elmo right delay of messages
-volatile int car_volt = -1; // not sure - didn't see it at other parts of the code
+volatile unsigned char UI2_R = 0x00;				 // This flag is a watchdog for Elmo right delay of messages
+volatile unsigned char UI2_L = 0x00;				 // This flag is a watchdog for Elmo right delay of messages
+volatile int car_volt = -1; 						 // For future usage
 extern uint32_t output;                              // This is a value from 0-100 that indicates how much torque is delivered from the EV pedal
 int RPM_r = 0x00;
 int RPM_L = 0x00;
-double motor_temp_r;                                 // Motor temperature
+double motor_temp_r;                                 // Motor temperature - future usage
 volatile int ErrorState=ERROR_DontSHTDWN;			 // There are 2 cases of errors at Safe state detailed at main.h
 //===================== MAIN var =======================
-volatile unsigned int count = 0; // not sure - didn't see it at other parts of the code
+volatile unsigned int count = 0;					 // not sure - didn't see it at other parts of the code
 static void init_CAN1_BGR(void);                     // Initiating the CAN module
 static void init_CAN_Filter(void);
 
@@ -118,7 +118,7 @@ static void MX_CAN1_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-int _write(int file, char *ptr, int len); // not sure
+int _write(int file, char *ptr, int len);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -133,7 +133,7 @@ int _write(int file, char *ptr, int len); // not sure
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	int j=0; 							// for tests
 	//while(1);
   /* USER CODE END 1 */
   
@@ -151,7 +151,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  #if 1 // not sure
+  #if 1
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -164,7 +164,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   #endif
 
-#if 0
+#if 0 	// for tests
   /**
    * This is a manual initial of the STM32 devices.
    * this was done by Elik Rubin to setup the CAN1.
@@ -214,9 +214,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 while(1){
 
-	//if(can_reacive)
-	//get message
-
 	if(Time_5_Ms_Flag){                             // "Driving Loop" - every 5ms check the APPS state
 		Time_5_Ms_Flag = 0x00;                      // Flag reset
 		ResetElmoRFlag();							// Set the loss of connection flag at the Elmo right, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
@@ -224,10 +221,16 @@ while(1){
  		if(Keep_420[1] == 0x00){  					// If the ECU is not already waiting for a 420 message answer(421 message) => make it wait for one
      		Keep_420[1] = 0x01;   					// Set the the flag to 1 => ECU is waiting for a 420 message answer
      		WatchDog_420=0;							// Reset 420 delay watchdog
+     		// for tests
+     		j++;									// Increase j every 5ms for tests
+     		if (j==20)								// If 100ms have passed with continuous connection of 421 messages => toggle LED1
+     		{
+     			j=0;
+     			HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_7);		// for tests
+     		}
  		}
  		else{										// Else there is a delay of more than 5ms for the 420 message => open shutdown
  			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 5ms?
- 			// Change this pin to LED so we can identify this problem?
  			WatchDog_420++;							// Count 420 delay watchdog for every 5ms
  			if (WatchDog_420>20)					// If 100ms has elapsed => open shutdown circuit
  				OpenShutDownError();				// Enter Safe state and open shut down circuit
@@ -244,14 +247,16 @@ while(1){
 		/* Request transmission bit - look up reference manual */
 		CAN1->sTxMailBox[0U].TIR  |=  CAN_TI0R_TXRQ;
 	}
-	if(Time_500_Ms_Flag){                           // This section prints car & motor state to the console(to the user)
+	if(Time_500_Ms_Flag){   // This section prints car & motor state to the console(to the user)
+
+		// Toggle LED3 for tests
+		HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for test
 		Time_500_Ms_Flag = 0x00;                    // Flag reset
  		if(Keep_80[1] == 0x00){                     // If the ECU is not already waiting for a 80 message answer(81 message) => make it wait for one
      		Keep_80[1] = 0x01;                      // Set the the flag to 1 => ECU is waiting for a 80 message answer
  		}
  		else{
  			HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
- 			// Change this pin to LED so we can identify this problem?
  			OpenShutDownError();	   				// Enter Safe state and open shut down circuit
  		}
 
@@ -329,7 +334,7 @@ while(1){
 				printf("\r Start_Motor \n");
 				Start_Motor_1(); 												 // Set motor right on
 				Start_Motor_2(); 												 // Set motor left on
-				HAL_Delay(200);                                                  // Creates a 200ms delay(not sure why 200)
+				HAL_Delay(200);                                                  // Creates a 200ms delay
 			}
 			else                                                                 // If the motors are on => move to IGNITION2DRIVE state
 			{
@@ -383,9 +388,6 @@ while(1){
 	break;
 	}
 
-  //HAL_Delay(1000);
-  //send_msg_to_start_L();
-  //send_msg_to_start_R();
 
 #if 0
   scale = 12;
@@ -654,7 +656,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2|GPIO_PIN_10|LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_14|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(BUZZER_out_GPIO_Port, BUZZER_out_Pin, GPIO_PIN_RESET);
@@ -668,8 +670,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB2 PB10 LD2_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_10|LD2_Pin;
+  /*Configure GPIO pins : PB2 PB10 PB14 LD2_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_14|LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

@@ -234,9 +234,11 @@
   #include "stm32f7xx_hal_rcc.h"
 #endif /* HAL_RCC_MODULE_ENABLED */
 
+#if 0
 #ifdef HAL_EXTI_MODULE_ENABLED
-  //#include "stm32f7xx_hal_exti.h"
+  #include "stm32f7xx_hal_exti.h"
 #endif /* HAL_EXTI_MODULE_ENABLED */
+#endif
 
 #ifdef HAL_GPIO_MODULE_ENABLED
   #include "stm32f7xx_hal_gpio.h"

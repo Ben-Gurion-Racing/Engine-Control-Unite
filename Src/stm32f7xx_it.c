@@ -120,11 +120,11 @@ uint32_t val;
 uint32_t output;                                             // This variable holds the power output transmitted to the motors
 double max_val[3] = {APPS_0_MAX , APPS_1_MAX , APPS_2_MAX};  // An array to hold APPS max values
 double min_val[3] = {APPS_0_MIN , APPS_1_MIN,APPS_2_MIN};    // An array to hold APPS min values
-uint32_t appsOutput[3];                                      // An array to hold APPS output values?
+uint32_t appsOutput[3];                                      // An array to hold APPS output values
 double scale = OUTPUT_SCALE;                                 // This variable receives the range which the power output value to the motors suppose to be(to avoid wrong values)
 /* External variables --------------------------------------------------------*/
-extern ETH_HandleTypeDef heth;     // not sure why its here, defined at row 132 by the STM
-extern CAN_HandleTypeDef hcan1;    // not sure why its here, defined at row 133 by the STM
+extern ETH_HandleTypeDef heth;     							 // not sure why its here, defined at row 132 by the STM
+extern CAN_HandleTypeDef hcan1;    							 // not sure why its here, defined at row 133 by the STM
 int msec_5 = 0;
 int ErrorState;												 // There are 2 cases of errors at Safe state detailed at main.h
 /* USER CODE END 0 */
@@ -189,14 +189,15 @@ void CAN1_TX_IRQHandler(void)
 void CAN1_RX0_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_RX0_IRQn 0 */
-	uint32_t errorcode = HAL_CAN_ERROR_NONE;     // not sure
-	uint32_t interrupts = READ_REG(CAN1->IER);   // not sure
-	uint32_t msrflags = READ_REG(CAN1->MSR);     // not sure
-	uint32_t tsrflags = READ_REG(CAN1->TSR);     // not sure
-	uint32_t rf0rflags = READ_REG(CAN1->RF0R);   // not sure
-	uint32_t rf1rflags = READ_REG(CAN1->RF1R);   // not sure
-	uint32_t esrflags = READ_REG(CAN1->ESR);     // not sure
-	uint32_t LEC_Flag=READ_BIT(CAN1->ESR,CAN_ESR_LEC);							// Read the error bits of the error register(checksum error bits and etc in reference manual)
+	// Canbus registers initial values set
+	uint32_t errorcode = HAL_CAN_ERROR_NONE;
+	uint32_t interrupts = READ_REG(CAN1->IER);
+	uint32_t msrflags = READ_REG(CAN1->MSR);
+	uint32_t tsrflags = READ_REG(CAN1->TSR);
+	uint32_t rf0rflags = READ_REG(CAN1->RF0R);
+	uint32_t rf1rflags = READ_REG(CAN1->RF1R);
+	uint32_t esrflags = READ_REG(CAN1->ESR);
+	uint32_t LEC_Flag=READ_BIT(CAN1->ESR,CAN_ESR_LEC);	 // Read the error bits of the error register(checksum error bits and etc in reference manual)
 
   // Receive FIFO 0 message pending interrupt management - definition in reference manual page  1552
   if ((interrupts & CAN_IT_RX_FIFO0_MSG_PENDING) != 0U)  // Check if the interrupt came due to a FIFO message interrupt on FIFO 0 register
@@ -232,19 +233,19 @@ void CAN1_RX0_IRQHandler(void)
 		switch(CAN_1_Rx_sid)													// Handling standard identifier message
 		{
 			case 0x401  :
-				 //TODO elik
+				 //TODO
 			break;
 			case 0x421 :	// Answer for the 0x420 message (getting samples of the pedals sensors from the pedals STM)
 				if( CAN_1_RecData[7] == ERROR_APPS_BPPS_TIMEOUT){				// Check if there's an error with the pedal sampling(APPS and brake pedals)
 					CAN1->sTxMailBox[2U].TIR =  ((  0x400   << 21U) |  0);      // Set up the Id
 					/* Set up the DLC */
-					CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;                   // not sure
-					CAN1->sTxMailBox[2U].TDTR |= 0x00000000U;                   // not sure
+					CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;                   // Mask
+					CAN1->sTxMailBox[2U].TDTR |= 0x00000000U;                   // Mask
 					/* Set up the data field */
 					//CAN1->sTxMailBox[0U].TDLR =  (0xAA << 24U) |  (0x55 << 16U) |(0xAA << 8U) | (0x55 );
 					//CAN1->sTxMailBox[0U].TDHR =  (0xA5 << 24U) |  (0x5A << 16U) |(0xA5 << 8U) | (0x5A );
 					/* Request transmission */
-					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;                // not sure
+					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;                // Can transmit bit
 
 					// Error of APPS BPPS timeout received from the pedal STM => open shut down circuit
 					OpenShutDownError();								// Enter Safe state and open shut down circuit
@@ -296,7 +297,7 @@ void CAN1_RX0_IRQHandler(void)
 						//}
 						else//drive :)
 						{
-							#if 0	//this will be the next output calculation (by Avishai)
+							#if 0	//this will be the next output calculation
 							// Both apps are inverted to each other and have the same travel range
 							// Therefore they are completing each other to 100%
 							getOutput(0); 									// Put the travel percentage of APPS0 in appsOutput[0]
@@ -319,7 +320,7 @@ void CAN1_RX0_IRQHandler(void)
 							output=( (val-min_val[0]) / (max_val[0]-min_val[0]) ) * scale;
 							if(output > 100) output = 100;
 							//output = output && 0x00FF;
-#if 0
+#if 0				// 60 message for future usage
 					CAN1->sTxMailBox[2U].TIR =  ((  0x60   << 21U) |  0);
 					/* Set up the DLC */
 					CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
@@ -437,7 +438,7 @@ inline void getOutput(int apps_i){
 inline void OpenShutDownError(){
 	car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
 	ErrorState=ERROR_OpenSHTDWN;
-	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_10 , GPIO_PIN_SET);		// PB10 =1; need to check if tis works for open shutdown
+	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_10 , GPIO_PIN_SET);		// PB10 =1; need to check if it works for open shutdown
 }
 
 /* USER CODE END 1 */
