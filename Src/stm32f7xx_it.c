@@ -76,11 +76,14 @@ uint32_t 		CAN_1_Rx_rtr;
 uint32_t 		CAN_1_Rx_dlc;
 uint32_t 		CAN_1_Rx_fmi;
 
-
+//==================== 420 =============================
+uint16_t apps0;
+uint16_t apps1;
+uint16_t brakeSign;
 uint32_t val;
-uint32_t output;
-double max_val = MAXIMUM_VAL;
-double min_val = MINIMUM_VAL;
+uint32_t output0;
+double apps0_max = APPS_0_MAX_VAL;
+double apps0_min = APPS_0_MIN_VAL;
 double scale = OUTPUT_SCALE;
 
 //==================== TIME =========================
@@ -225,6 +228,7 @@ void CAN1_RX0_IRQHandler(void)
 				CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);	//BPPS_Signal
 				CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);	//valid_Apps_Bpps
 
+
 				if( CAN_1_RecData[7] == 0xFF){ //cheak_if_pedal_valid
 
 					/* Set up the Id */
@@ -239,16 +243,24 @@ void CAN1_RX0_IRQHandler(void)
 					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
 				}
 				else{
-					Keep_420[1] = 0x00;
-					val = ( (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) ) ) ;
-					output=( (val-min_val) / (max_val-min_val) ) * scale;
 
-					if(output > 100) output = 100;
+					apps0=( (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) ) ) ;
+					apps1 =( (0xFF00 & ( CAN_1_RecData[3] << 8 )) | (0x00FF & (CAN_1_RecData[2] ) ) ) ;
+
+
+
+					Keep_420[1] = 0x00;
+					//val = ( (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) ) ) ;
+					output0=( (apps0-apps0_min) / (apps0_max-apps0_min) ) * scale;
+
+
+					if(output0 > 100) output0 = 100;
+					else if (output0 < 0) output0 = 0;
 					//output = output && 0x00FF;
 					brak_flag = 0;
 
 					if( CAN_1_RecData[6] == 0x01 ){  // break
-						output = 0;
+						output0 = 0;
 						brak_flag = 1;
 					}
 #if 0
@@ -257,7 +269,7 @@ void CAN1_RX0_IRQHandler(void)
 					CAN1->sTxMailBox[2U].TDTR &= 0xFFFFFFF0U;
 					CAN1->sTxMailBox[2U].TDTR |= 0x00000001U;
 					/* Set up the data field */
-					CAN1->sTxMailBox[2U].TDLR =  output;
+					CAN1->sTxMailBox[2U].TDLR =  output0;
 					CAN1->sTxMailBox[2U].TDHR =  val;
 					/* Request transmission */
 					CAN1->sTxMailBox[2U].TIR  |=  CAN_TI0R_TXRQ;
@@ -268,15 +280,18 @@ void CAN1_RX0_IRQHandler(void)
 				//get the median_of _the_array
 
 				//if state is DRIVE then send command upcb2
-				//send_TC( upcb  , destIPAddr , 5001 , output );
+				//send_TC( upcb  , destIPAddr , 5001 , output0 );
 
 				if(car_state == DRIVE ){//DRIVE){
-					send_msg_to_dest2(output);
-					send_msg_to_dest(output);
-					//send_msg_to_dest2_temp( output);
+					send_msg_to_dest2(output0);
+					send_msg_to_dest(output0);
+					//send_msg_to_dest2_temp( output0);
 
 					}
 				}
+			// clear the pedals value for next round
+			apps0= 0xFFFF ;
+			apps1 =0xFFFF ;
 			break;
 
 			case 0x81  :

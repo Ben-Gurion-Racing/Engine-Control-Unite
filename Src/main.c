@@ -92,7 +92,7 @@ volatile unsigned char brak_flag = 0x00;             // This flag means that the
 volatile unsigned char motor_LEFT = 0x00;            // This flag means that the left motor is on
 volatile unsigned char motor_RIGHT = 0x00;           // This flag means that the left motor is on
 volatile int car_volt = -1;
-extern uint32_t output;                              // This is a value from 0-100 that indicates how much torque is delivered from the EV pedal
+extern uint32_t output0;                              // This is a value from 0-100 that indicates how much torque is delivered from the EV pedal
 int RPM_r = 0x00;
 int RPM_L = 0x00;
 double motor_temp_r;                                 // Motor temperature?
@@ -112,7 +112,7 @@ double scale = OUTPUT_SCALE;
 char answer;
 /*aviciis code END*/
 #endif
-
+uint32_t ready2drive_debug= 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -295,7 +295,7 @@ while(1){
 		printf("\r car_state 	= 	%d \n" ,car_state);
 		printf("\r motor_RIGHT 	=	%d \n", motor_RIGHT);
 		printf("\r motor_LEFT	=	%d \n", motor_LEFT);
-		printf("\r output 	=	%d \n",output);
+		printf("\r output 	=	%d \n",output0);
 		printf("\r brak_flag 	=	%d \n",brak_flag);
 		printf("\r ready_to_drive_button_Pin	=	%d \n",HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin));
 		printf("\r RPM_r 	=	%d \n",RPM_r);
@@ -314,7 +314,10 @@ while(1){
 	{
 	case NUTRAL:
 		//if button is push and pedal value is on then move to IGNITION_TO_DRIVE
-		if((HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin)==0) && brak_flag) //=> Button is Pressed
+
+		//Avishai - changed the pin default to pulldown
+
+		if((HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin)==1) && brak_flag) //=> Button is Pressed
 			if(motor_LEFT  == 0 || motor_RIGHT == 0){
 				car_state = NUTRAL;
 				printf("\r Start_Motor \n");
@@ -334,7 +337,7 @@ while(1){
 		//set motor on
 		break;
 	case IGNITION_TO_DRIVE:
-		if((HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin)==0) && brak_flag ){// && motor_RIGHT && motor_LEFT){ //=> Button is Pressed
+		if((HAL_GPIO_ReadPin(ready_to_drive_button_GPIO_Port,ready_to_drive_button_Pin)==0) && brak_flag ){// && motor_RIGHT && motor_LEFT){ //=> Button is Pressed
 			 if ((HAL_GetTick() - tickstart) > 3000U){
 					car_state = BUZZER;
 					tickstart = HAL_GetTick();
@@ -688,7 +691,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : ready_to_drive_button_Pin */
   GPIO_InitStruct.Pin = ready_to_drive_button_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(ready_to_drive_button_GPIO_Port, &GPIO_InitStruct);
 
 }
