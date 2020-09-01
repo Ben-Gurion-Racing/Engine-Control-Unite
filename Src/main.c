@@ -89,10 +89,10 @@ volatile uint32_t tickstart = 0U;                    // Defines a 32bit unsigned
 volatile unsigned char	Time_1_Ms_Flag = 0x00;
 volatile unsigned char	Time_5_Ms_Flag = 0x00;       // This flag elapses every 5ms - used for 420 functions(motor outputs and etc)
 
-// for SCS need to change the 3 next lines
-volatile unsigned char	Time_1_Se_Flag = 0x00;
-//volatile unsigned char	Time_500_Ms_Flag = 0x00;     // This flag elapses every 0.5s - used for 80 message - checks online users
-//volatile unsigned int	WatchDog_420=0;
+// for SCS need to change the 3 next lines to 500ms instead of 1sec
+//volatile unsigned char	Time_1_Se_Flag = 0x00;
+volatile unsigned char	Time_500_Ms_Flag = 0x00;     // This flag elapses every 0.5s - used for 80 message - checks online users
+volatile unsigned int	WatchDog_420=0;
 
 //==================== KEEP =========================
 volatile unsigned char	Keep_80[16];				 // Keep_80[i] indicate if still waiting for a response from unit 'i' to the 0x80 CAN message
@@ -103,14 +103,16 @@ volatile unsigned char motor_LEFT = 0x00;            // This flag means that the
 volatile unsigned char motor_RIGHT = 0x00;           // This flag means that the right motor is on or off
 volatile int car_volt = -1; 						 // For future usage
 extern uint32_t output0;                              // This is a value from 0-100 that indicates how much torque is delivered from the EV pedal
+extern uint32_t apps0;
+extern uint32_t apps1;
 int RPM_r = 0x00;
 int RPM_L = 0x00;
 double motor_temp_r;                                 // Motor temperature - future usage
 
 // The next 3 lines are used for SCS purposes
-//volatile unsigned char UI2_R = 0x00;				 // This flag is a watchdog for Elmo right delay of messages
-//volatile unsigned char UI2_L = 0x00;				 // This flag is a watchdog for Elmo right delay of messages
-//volatile int ErrorState=ERROR_DontSHTDWN;			 // There are 2 cases of errors at Safe state detailed at main.h
+volatile unsigned char UI2_R = 0x00;				 // This flag is a watchdog for Elmo right delay of messages
+volatile unsigned char UI2_L = 0x00;				 // This flag is a watchdog for Elmo right delay of messages
+volatile int ErrorState=ERROR_DontSHTDWN;			 // There are 2 cases of errors at Safe state detailed at main.h
 
 //==================== MAIN var =====================
 volatile unsigned int count = 0;					 // not sure - didn't see it at other parts of the code
@@ -277,12 +279,12 @@ while(1){
 	}
 
 	// Need to change this to 500ms flag
-	if( Time_1_Se_Flag ){	// This section prints car & motor state to the console(to the user)
+	if( Time_500_Ms_Flag ){	// This section prints car & motor state to the console(to the user)
 		// Toggle LED3 for tests
 		HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for tests
 
 		// Need to change this to 500ms flag
-		Time_1_Se_Flag = 0x00;                      // Flag reset
+		Time_500_Ms_Flag = 0x00;                      // Flag reset
 
 		if(Keep_80[1] == 0x00){                     // If the ECU is not already waiting for a 80 message answer(81 message) => make it wait for one
 		     		Keep_80[1] = 0x01;                      // Set the the flag to 1 => ECU is waiting for a 80 message answer
@@ -346,6 +348,8 @@ while(1){
 		printf("\r motor_RIGHT 	=	%d \n", motor_RIGHT);
 		printf("\r motor_LEFT	=	%d \n", motor_LEFT);
 		printf("\r output 	=	%d \n",output0);
+		printf("\r APPS1 	=	%d \n", apps0);
+		printf("\r APPS2 	=	%d \n", apps1);
 		printf("\r brak_flag 	=	%d \n",brak_flag);
 		printf("\r ready_to_drive_button_Pin	=	%d \n",HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin));
 		printf("\r RPM_r 	=	%d \n",RPM_r);

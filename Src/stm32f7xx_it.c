@@ -107,14 +107,11 @@ extern volatile unsigned char	Time_1_Ms_Flag;
 extern volatile unsigned char	Time_5_Ms_Flag;				 // This flag elapses every 5ms - used for 420 functions(motor outputs and etc)
 unsigned int					Time_1_Ms_Counter = 0;
 
-// Need to be replaced
-extern volatile unsigned char	Time_1_Se_Flag;
-unsigned int					Time_1_Se_Counter = 0;
-
-// Need to implement from the last code
-//extern volatile unsigned char	Time_500_Ms_Flag;		 	 // This flag elapses every 0.5s - used for 80 message - checks online users
-//unsigned int					PlausibilityWatchDog=0;      // Counts 100ms for T 11.8.8 plausibility error
-//unsigned int					Time_500_Ms_Counter = 0;
+//extern volatile unsigned char	Time_1_Se_Flag;
+//unsigned int					Time_1_Se_Counter = 0;
+extern volatile unsigned char	Time_500_Ms_Flag;
+unsigned int					Time_500_Ms_Counter = 0;
+unsigned int					PlausibilityWatchDog=0;      // Counts 100ms for T 11.8.8 plausibility error
 
 //===================== KEEP ===========================
 extern volatile unsigned char	Keep_80[16];                 // Keep_80[i] indicate if still waiting for a response from unit 'i' to the 0x80 CAN message
@@ -177,19 +174,11 @@ void SysTick_Handler(void)
 		Time_5_Ms_Flag = 0x01;
 	}
 
-	if(Time_1_Ms_Counter >= 1000){
-		Time_1_Ms_Counter = 0;
-		Time_1_Se_Counter++;
-		Time_1_Se_Flag = 0x01;
+	if(Time_1_Ms_Counter >= 500){					  // Every 0.5s do the following:
+		Time_1_Ms_Counter = 0;						  // Reset the ms counter
+		Time_500_Ms_Counter++;
+		Time_500_Ms_Flag = 0x01;					  // Every 0.5s, set the 0.5s Flag to 1
 	}
-
-	// from the last code
-	//if(Time_1_Ms_Counter >= 500){                     // Every 0.5s do the following:
-	//	Time_1_Ms_Counter = 0;                        // Reset the ms counter
-	//	Time_500_Ms_Counter++;
-	//	Time_500_Ms_Flag = 0x01;                      // Every 0.5s, set the 0.5s Flag to 1
-	//}
-
 
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();

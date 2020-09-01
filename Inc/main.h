@@ -133,6 +133,33 @@ void Error_Handler(void);
 #define APPS_2_MIN_VAL 0xFFFF
 #endif
 
+//#define APPS_0_MIN		709
+//#define APPS_0_MAX		2300
+
+//#define APPS_1_MIN		0										// Need to measure the true values
+//#define APPS_1_MAX		0xFFFF									// Need to measure the true values
+
+//#define APPS_2_MIN		0
+//#define APPS_2_MAX		0
+
+//#define OUTPUT_SCALE 	100
+
+
+//=========== GLOBAL ERRORS =============
+#define ERROR_APPS             			0xFFFF
+#define ERROR_APPS_MAXVALUE				0xDFFF
+#define ERROR_BPPS          		    0xFF
+#define ERROR_APPS_BPPS_TIMEOUT 		0xFF
+//#define ERROR_SHRT_CIRC_TO_GRND	 		0x0050
+#define ERROR_OpenSHTDWN			 	1						// Defines an error that open shutdown circuit at Safe State
+#define ERROR_DontSHTDWN			 	2						// Defines an error the doesn't open shutdown circuit at Safe State
+
+
+
+
+
+
+
 #if !TABLE_MODEL
 //
 #define APPS_0_MAX_VAL 3446
