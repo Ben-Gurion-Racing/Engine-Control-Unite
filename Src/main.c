@@ -88,12 +88,9 @@ volatile uint32_t tickstart = 0U;                    // Defines a 32bit unsigned
 //==================== TIME =========================
 volatile unsigned char	Time_1_Ms_Flag = 0x00;
 volatile unsigned char	Time_5_Ms_Flag = 0x00;       // This flag elapses every 5ms - used for 420 functions(motor outputs and etc)
-
-// for SCS need to change the 3 next lines to 500ms instead of 1sec
-//volatile unsigned char	Time_1_Se_Flag = 0x00;
 volatile unsigned char	Time_500_Ms_Flag = 0x00;     // This flag elapses every 0.5s - used for 80 message - checks online users
 volatile unsigned int	WatchDog_420=0;
-
+volatile unsigned int	WatchDog_80=0;
 //==================== KEEP =========================
 volatile unsigned char	Keep_80[16];				 // Keep_80[i] indicate if still waiting for a response from unit 'i' to the 0x80 CAN message
 volatile unsigned char	Keep_420[16];				 // Keep_420[i] indicate if still waiting for a response from unit 'i' to the 0x420 CAN message
@@ -208,7 +205,7 @@ int main(void)
   __HAL_CAN_ENABLE_IT(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);        // Enable CAN1 interrupts.
   HAL_CAN_Start( &hcan1 );                                        // Start the CAN module.
   #if 1
-	// Standard CAN message by elik - Open decelerations to understand meanings
+	// Standard CAN message by elik -  decelerations to understand meanings
 	CAN1->sTxMailBox[1U].TIR =  ((  0x80   << 21U) |  0);               // Set up the Id for an empty mailbox(mailbox 1 in this line)
 	/* Set up the DLC - number of bytes of data being transmitted */
 	CAN1->sTxMailBox[1U].TDTR &= 0xFFFFFFF0U;
@@ -240,14 +237,13 @@ while(1){
 		Time_5_Ms_Flag = 0x00;    					// Flag reset
 
 		// For SCS uses
-		//ResetElmoRFlag();							// Set the loss of connection flag at the Elmo right, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
-		//ResetElmoLFlag();							// Set the loss of connection flag at the Elmo left, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
+		ResetElmoRFlag();							// Set the loss of connection flag at the Elmo right, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
+		ResetElmoLFlag();							// Set the loss of connection flag at the Elmo left, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
 		if(Keep_420[1] == 0x00){  					// If the ECU is not already waiting for a 420 message answer(421 message) => make it wait for one
 		     Keep_420[1] = 0x01;   					// Set the the flag to 1 => ECU is waiting for a 420 message answer
 
 		     // For SCS uses
-		     //WatchDog_420=0;							// Reset 420 delay watchdog
-
+		     WatchDog_420=0;							// Reset 420 delay watchdog
 		     // for tests
 		     j++;									// Increase j every 5ms for tests
 		     if (j==20)								// If 100ms have passed with continuous connection of 421 messages => toggle LED1
@@ -260,10 +256,12 @@ while(1){
 		 	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 5ms?
 
 		 	// The Next 4 lines are for SCS uses
-		 	//WatchDog_420++;							// Count 420 delay watchdog for every 5ms
-		 	//if (WatchDog_420>20)					// If 100ms has elapsed => open shutdown circuit
-		 	//	OpenShutDownError();				// Enter Safe state and open shut down circuit
-		 	//
+		 	WatchDog_420++;							// Count 420 delay watchdog for every 5ms
+		 	if (WatchDog_420>100)					// If 500ms has elapsed => open shutdown circuit
+		 	{
+		 		OpenShutDownError();				// Enter Safe state and open shut down circuit
+		 		//HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_7);		// for tests
+		 	}
 		}
 
 		// standard CAN 420 message by elik - Check the pedals state from the APPS's STM
@@ -278,43 +276,45 @@ while(1){
 		CAN1->sTxMailBox[0U].TIR  |=  CAN_TI0R_TXRQ;
 	}
 
-	// Need to change this to 500ms flag
 	if( Time_500_Ms_Flag ){	// This section prints car & motor state to the console(to the user)
-		// Toggle LED3 for tests
-		HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for tests
-
-		// Need to change this to 500ms flag
 		Time_500_Ms_Flag = 0x00;                      // Flag reset
-
 		if(Keep_80[1] == 0x00){                     // If the ECU is not already waiting for a 80 message answer(81 message) => make it wait for one
-		     		Keep_80[1] = 0x01;                      // Set the the flag to 1 => ECU is waiting for a 80 message answer
+		     Keep_80[1] = 0x01;                      // Set the the flag to 1 => ECU is waiting for a 80 message answer
+		     // For SCS uses
+		     WatchDog_80=0;							// Reset 80 delay watchdog
+			 // Toggle LED3 for tests
+			 HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for tests
 		}
 		else{
 		 	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
 		 	//OpenShutDownError();	   				// Enter Safe state and open shut down circuit
+		 	WatchDog_80++;							// Count 80 delay watchdog for every 500ms
+		 	if (WatchDog_80>1)						// If 500ms has elapsed => open shutdown circuit
+		 	{
+		 		OpenShutDownError();				// Enter Safe state and open shut down circuit
+		 		// Toggle LED3 for tests
+		 		//HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for tests
+		    }
 		}
 
-	// The next 19 lines are for SCS uses
- 		// Check Delay of ETHERNET messages with the Elmos
- 		//AskDelayWatchDogR();
- 		//AskDelayWatchDogL();
- 		//if (UI2_R==0)								// The Elmo right sets the UI[2] register to 0 every 10ms, this condition finds out if after 500ms the Elmo right didn't work
- 		//	UI2_R=1;								// This flag means that the ECU is waiting for a response from the Elmo Right
- 		//else
- 		//{
- 		//	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
- 		//	// Change this pin to LED so we can identify this problem?
- 		//	OpenShutDownError();	   			    // Enter Safe state and open shut down circuit
- 		//}
- 		//if (UI2_L==0)								// The Elmo right sets the UI[2] register to 0 every 10ms, this condition finds out if after 500ms the Elmo right didn't work
- 		//	UI2_L=1;								// This flag means that the ECU is waiting for a response from the Elmo Right
- 		//else
- 		//{
- 		//	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
- 			// Change this pin to LED so we can identify this problem?
- 		//	OpenShutDownError();	   				// Enter Safe state and open shut down circuit
- 		//}
-
+		// SCS check for the elmo drivers
+		if (car_state==DRIVE) 							 // When in DRIVE mode => check delay of ETHERNET messages with the Elmos
+		{
+			AskDelayWatchDogR();
+			AskDelayWatchDogL();
+			if (UI2_R==0)								// The Elmo right sets the UI[2] register to 0 every 10ms, this condition finds out if after 500ms the Elmo right didn't work
+				UI2_R=1;								// This flag means that the ECU is waiting for a response from the Elmo Right
+			else
+			{
+ 				OpenShutDownError();	   			    // Enter Safe state and open shut down circuit
+			}
+			if (UI2_L==0)								// The Elmo right sets the UI[2] register to 0 every 10ms, this condition finds out if after 500ms the Elmo right didn't work
+				UI2_L=1;								// This flag means that the ECU is waiting for a response from the Elmo Right
+			else
+			{
+				OpenShutDownError();	   				// Enter Safe state and open shut down circuit
+			}
+		}
 
 		// standard CAN 80 message by elik - Check if the other STM's on the CAN network are connected
 		CAN1->sTxMailBox[1U].TIR =  ((  0x80   << 21U) |  0);        // Set up the Id for an empty mailbox(mailbox 1 in this line)
@@ -404,33 +404,37 @@ while(1){
 			car_state = ERROR_state;
 
 			// Next line for SCS
-			// ErrorState=ERROR_DontSHTDWN;										 // This error doesn't open shutdown circuit
-
+			ErrorState=ERROR_DontSHTDWN;										 // This error doesn't open shutdown circuit
 			tickstart = HAL_GetTick();											// Start a timer for the Safe State
 		}
 	break;
 	case ERROR_state:
-	if(motor_RIGHT == 1 && motor_LEFT == 1)									// If the motors work => return to DRIVE state
-		car_state = DRIVE;
-	if ((HAL_GetTick() - tickstart) > 5000U)								// If 5sec has passed in Safe State => return to NUTRAL state
-		 car_state = NUTRAL;
+	//if(motor_RIGHT == 1 && motor_LEFT == 1)									// If the motors work => return to DRIVE state
+	//	car_state = DRIVE;
+	//if ((HAL_GetTick() - tickstart) > 5000U)								// If 5sec has passed in Safe State => return to NUTRAL state
+	//	 car_state = NUTRAL;
 
 	// Next 15 lines are for SCS uses
-	//if (ErrorState==ERROR_DontSHTDWN)										 // The error doesn't open shutdown circuit
-	//		{
-	//			if(motor_RIGHT == 1 && motor_LEFT == 1)                              // If the motors work => return to DRIVE state
-	//				car_state = DRIVE;
-	//			if ((HAL_GetTick() - tickstart) > 5000U)                             // If 5sec has passed in Safe State => return to NUTRAL state
-	//				car_state = NUTRAL;
-	//				ErrorState=ERROR_OpenSHTDWN;									 // Reset the error state flag
-	//		}
-	//		else																	 // Open shutdown circuit
-	//			ErrorState=ERROR_OpenSHTDWN;
-	//			OpenShutDownError();	   								 // Enter Safe state and open shut down circuit
-	//			// Need to add an open shutdown circuit pin here
-	//			// HAL_GPIO_WritePin( GPIOB , GPIO_PIN_5 , GPIO_PIN_SET); // Need to choose a free pin
-	//
-	break;
+		if (ErrorState==ERROR_DontSHTDWN)										 // The error doesn't open shutdown circuit
+				{
+					if(motor_RIGHT == 1 && motor_LEFT == 1)                              // If the motors work => return to DRIVE state
+						car_state = DRIVE;
+					if ((HAL_GetTick() - tickstart) > 5000U)                             // If 5sec has passed in Safe State => return to NUTRAL state
+						car_state = NUTRAL;
+						ErrorState=ERROR_DontSHTDWN;									 // Reset the error state flag
+				}
+				else																	 // Open shutdown circuit
+					{
+					ErrorState=ERROR_OpenSHTDWN;
+					OpenShutDownError();	   								  // Enter Safe state and open shut down circuit
+					// Need to add an open shutdown circuit pin here
+					// HAL_GPIO_WritePin( GPIOB , GPIO_PIN_5 , GPIO_PIN_SET); // Need to choose a free pin
+					// After shutdown pin is on => after 5 seconds the vehicle returns to nutral state(and the TS system can be raised again)
+					HAL_Delay(5000);
+					car_state = NUTRAL;
+					ErrorState=ERROR_DontSHTDWN;									 // Reset the error state flag
+					}
+		break;
 	}
 
 #if 0
@@ -800,6 +804,14 @@ int _write(int file, char *data, int len)
       HAL_UART_Transmit(&huart3, (uint8_t*)data, len, 10);
       return len;
 }
+
+//inline void OpenShutDownError(){
+//	car_state=ERROR_state;								// Enter Safe state and open shut down circuit
+//	ErrorState=ERROR_OpenSHTDWN;
+	//HAL_GPIO_WritePin( GPIOB , GPIO_PIN_10 , GPIO_PIN_SET);		// PB10 =1; need to check if it works for open shutdown
+	// Need to add an open shutdown circuit pin here
+	// HAL_GPIO_WritePin( GPIOB , GPIO_PIN_5 , GPIO_PIN_SET); // Need to choose a free pin
+//}
 /* USER CODE END 4 */
 
 /**

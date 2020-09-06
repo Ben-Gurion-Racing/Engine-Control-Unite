@@ -146,7 +146,7 @@ extern volatile unsigned car_state;                          // This variable in
 extern ETH_HandleTypeDef heth;     							 // not sure why its here, defined at row 157 by the STM
 extern CAN_HandleTypeDef hcan1;    							 // not sure why its here, defined at row 158 by the STM
 int msec_5 = 0;
-//int ErrorState;												 // There are 2 cases of errors at Safe state detailed at main.h
+extern int ErrorState;												 // There are 2 cases of errors at Safe state detailed at main.h
 
 /* USER CODE END 0 */
 
@@ -222,7 +222,7 @@ void CAN1_RX0_IRQHandler(void)
 	uint32_t rf0rflags = READ_REG(CAN1->RF0R);
 	uint32_t rf1rflags = READ_REG(CAN1->RF1R);
 	uint32_t esrflags = READ_REG(CAN1->ESR);
-	//	uint32_t LEC_Flag=READ_BIT(CAN1->ESR,CAN_ESR_LEC);	 // Read the error bits of the error register(checksum error bits and etc in reference manual)
+	uint32_t LEC_Flag=READ_BIT(CAN1->ESR,CAN_ESR_LEC);	 // Read the error bits of the error register(checksum error bits and etc in reference manual)
 
 
   // Receive FIFO 0 message pending interrupt management - definition in reference manual page  1552
@@ -293,14 +293,16 @@ void CAN1_RX0_IRQHandler(void)
 
 					// From last code
 					// Error of APPS BPPS timeout received from the pedal STM => open shut down circuit
-					//OpenShutDownError();								// Enter Safe state and open shut down circuit
+					OpenShutDownError();								// Enter Safe state and open shut down circuit
 				}
 				// From last code
-				//else if (LEC_Flag!=0)											// If there was a checksum error => open shutdown circuit
-					//OpenShutDownError();
+				else if (LEC_Flag!=0)											// If there was a checksum error => open shutdown circuit
+				{
+					OpenShutDownError();
+					//HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_7);		// for tests
+				}
 				else                                                            // A sampled was received from the APPS
 				{
-
 					apps0=( (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) ) ) ;
 					apps1 =( (0xFF00 & ( CAN_1_RecData[3] << 8 )) | (0x00FF & (CAN_1_RecData[2] ) ) ) ;
 					Keep_420[1] = 0x00;
@@ -367,17 +369,19 @@ void CAN1_RX0_IRQHandler(void)
 					}
 				}
 
-			// Didn't apear at the last code
+			// Didn't apear at the last code - not sure if this is needed
 				// clear the pedals value for next round
-				apps0= 0xFFFF ;
-				apps1 =0xFFFF ;
+				//apps0= 0xFFFF ;
+				//apps1 =0xFFFF ;
 
 			break;
 			case 0x81  :                                                        // Indicate there is a communication between the ECU and PU
 				//HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2|LD3_Pin , GPIO_PIN_SET);
-				//if (LEC_Flag!=0)													// If there was a checksum error => open shutdown circuit
-				//	OpenShutDownError();
-
+				if (LEC_Flag!=0)													// If there was a checksum error => open shutdown circuit
+				{
+					OpenShutDownError();
+					//HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_7);		// for tests
+				}
 			// This doesn't appear in the last code
 			   CAN_1_Rx_rtr = (uint8_t)0x02U & CAN1->sFIFOMailBox[0].RIR;
 			   CAN_1_Rx_dlc = (uint8_t)0x0FU & CAN1->sFIFOMailBox[0].RDTR;
@@ -391,29 +395,16 @@ void CAN1_RX0_IRQHandler(void)
 			   CAN_1_RecData[6] = CAN1->sFIFOMailBox[0].RDHR >> (16U);
 			   CAN_1_RecData[7] = CAN1->sFIFOMailBox[0].RDHR >> (24U);
 
-			   if( (CAN_1_RecData[0] == 0x55)
-					   && (CAN_1_RecData[1] == 0x55)
-					   && (CAN_1_RecData[2] == 0xAA)
-					   && (CAN_1_RecData[3] == 0x55)
-					   && (CAN_1_RecData[4] == 0x5A)
-					   && (CAN_1_RecData[5] == 0xA5)
-					   && (CAN_1_RecData[6] == 0x5A)
-					   && (CAN_1_RecData[7] == 0xA5)  ){
-				   Keep_80[1] = 0x00;
+			   if( (CAN_1_RecData[0] == 0x55)									// if the message data is 0x5555555555555555 => reset flag
+			   		   && (CAN_1_RecData[1] == 0x55)
+			   		   && (CAN_1_RecData[2] == 0x55)
+			   		   && (CAN_1_RecData[3] == 0x55)
+			   		   && (CAN_1_RecData[4] == 0x55)
+			   		   && (CAN_1_RecData[5] == 0x55)
+			   		   && (CAN_1_RecData[6] == 0x55)
+			   		   && (CAN_1_RecData[7] == 0x55)  ){
+			   	   Keep_80[1] = 0x00;										 	// 81 Message has been received - set the 80 Flag to 0 for the next request
 			   }
-
-			   // From the last code
-			   //if( (CAN_1_RecData[0] == 0x55)									// if the message data is 0x5555555555555555 => reset flag
-			   //		   && (CAN_1_RecData[1] == 0x55)
-			   //		   && (CAN_1_RecData[2] == 0x55)
-			   //		   && (CAN_1_RecData[3] == 0x55)
-			   //		   && (CAN_1_RecData[4] == 0x55)
-			   //		   && (CAN_1_RecData[5] == 0x55)
-			   //		   && (CAN_1_RecData[6] == 0x55)
-			   //		   && (CAN_1_RecData[7] == 0x55)  ){
-			   //	   Keep_80[1] = 0x00;										 	// 81 Message has been received - set the 80 Flag to 0 for the next request
-			   //}
-
 			break;
 
 
@@ -492,11 +483,13 @@ void ETH_IRQHandler(void)
 //inline void getOutput(int apps_i){
 //	appsOutput[apps_i] = ( (apps[apps_i] - min_val[apps_i]) / (max_val[apps_i] - min_val[apps_i]) ) * scale;
 //}
-//inline void OpenShutDownError(){
-//	car_state=SAFE_STATE;								// Enter Safe state and open shut down circuit
-//	ErrorState=ERROR_OpenSHTDWN;
-//	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_10 , GPIO_PIN_SET);		// PB10 =1; need to check if it works for open shutdown
-//}
+inline void OpenShutDownError(){
+	car_state=ERROR_state;								// Enter Safe state and open shut down circuit
+	ErrorState=ERROR_OpenSHTDWN;
+	//HAL_GPIO_WritePin( GPIOB , GPIO_PIN_10 , GPIO_PIN_SET);		// PB10 =1; need to check if it works for open shutdown
+	// Need to add an open shutdown circuit pin here
+	// HAL_GPIO_WritePin( GPIOB , GPIO_PIN_5 , GPIO_PIN_SET); // Need to choose a free pin
+}
 
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
