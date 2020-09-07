@@ -99,7 +99,9 @@ volatile unsigned char brak_flag = 0x00;             // This flag means that the
 volatile unsigned char motor_LEFT = 0x00;            // This flag means that the left motor is on or off
 volatile unsigned char motor_RIGHT = 0x00;           // This flag means that the right motor is on or off
 volatile int car_volt = -1; 						 // For future usage
-extern uint32_t output0;                              // This is a value from 0-100 that indicates how much torque is delivered from the EV pedal
+extern uint32_t output;                             // This is a value from 0-100 that indicates how much torque is delivered from the EV pedal
+extern uint32_t output0;                             // For tests
+extern uint32_t output1;                             // For tests
 extern uint32_t apps0;
 extern uint32_t apps1;
 int RPM_r = 0x00;
@@ -237,8 +239,8 @@ while(1){
 		Time_5_Ms_Flag = 0x00;    					// Flag reset
 
 		// For SCS uses
-		ResetElmoRFlag();							// Set the loss of connection flag at the Elmo right, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
-		ResetElmoLFlag();							// Set the loss of connection flag at the Elmo left, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
+		//ResetElmoRFlag();							// Set the loss of connection flag at the Elmo right, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
+		//ResetElmoLFlag();							// Set the loss of connection flag at the Elmo left, if the Elmo flag isn't reset after 500ms it sends torque 0 to the motor
 		if(Keep_420[1] == 0x00){  					// If the ECU is not already waiting for a 420 message answer(421 message) => make it wait for one
 		     Keep_420[1] = 0x01;   					// Set the the flag to 1 => ECU is waiting for a 420 message answer
 
@@ -283,7 +285,7 @@ while(1){
 		     // For SCS uses
 		     WatchDog_80=0;							// Reset 80 delay watchdog
 			 // Toggle LED3 for tests
-			 HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for tests
+			 //HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for tests
 		}
 		else{
 		 	HAL_GPIO_WritePin( GPIOB , GPIO_PIN_2 , GPIO_PIN_SET);   // Not sure - maybe an ERROR pin for shutdown? since its waiting and havn't gotten for 1s?
@@ -306,13 +308,17 @@ while(1){
 				UI2_R=1;								// This flag means that the ECU is waiting for a response from the Elmo Right
 			else
 			{
- 				OpenShutDownError();	   			    // Enter Safe state and open shut down circuit
+ 				//OpenShutDownError();	   			    // Enter Safe state and open shut down circuit
+ 				HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for tests
 			}
 			if (UI2_L==0)								// The Elmo right sets the UI[2] register to 0 every 10ms, this condition finds out if after 500ms the Elmo right didn't work
+				{
 				UI2_L=1;								// This flag means that the ECU is waiting for a response from the Elmo Right
+				}
 			else
 			{
-				OpenShutDownError();	   				// Enter Safe state and open shut down circuit
+				HAL_GPIO_TogglePin( GPIOB ,GPIO_PIN_14);	// for tests
+				//OpenShutDownError();	   				// Enter Safe state and open shut down circuit
 			}
 		}
 
@@ -347,14 +353,18 @@ while(1){
 		printf("\r car_state 	= 	%d \n" ,car_state);
 		printf("\r motor_RIGHT 	=	%d \n", motor_RIGHT);
 		printf("\r motor_LEFT	=	%d \n", motor_LEFT);
-		printf("\r output 	=	%d \n",output0);
-		printf("\r APPS1 	=	%d \n", apps0);
-		printf("\r APPS2 	=	%d \n", apps1);
+		printf("\r output 	=	%d \n",output);
+		printf("\r output0(tests) 	=	%d \n",output0);
+		printf("\r output1(tests) 	=	%d \n",output1);
+		printf("\r APPS0 	=	%d \n", apps0);
+		printf("\r APPS1 	=	%d \n", apps1);
 		printf("\r brak_flag 	=	%d \n",brak_flag);
 		printf("\r ready_to_drive_button_Pin	=	%d \n",HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin));
 		printf("\r RPM_r 	=	%d \n",RPM_r);
 		printf("\r RPM_L 	=	%d \n",RPM_L);
 		printf("\r motor_temp_r 	=	%f \n",motor_temp_r);
+		printf("\r UI2_R 	=	%d \n", UI2_R);
+		printf("\r UI2_L 	=	%d \n", UI2_L);
 		printf("\n");
 		printf("\n");
 	}
@@ -364,7 +374,7 @@ while(1){
 	switch(car_state) // set the car state -- idle ready to drive
 	{
 	case NUTRAL: 	  // If button is push and pedal value is on then move to IGNITION_TO_DRIVE
-		// Avishai - changed the pin default to pulldown
+		// NOTE!!!!!!! - Avishai - changed the pin default to pulldown FOR MODEL TABLE, FOR VEHICLE ITS PULL UP
 		if((HAL_GPIO_ReadPin(GPIOB,ready_to_drive_button_Pin)==1) && brak_flag) // Check if Ready2Drive && brake pedal are pressed
 			if(motor_LEFT  == 0 || motor_RIGHT == 0){                            // If one of the motor is off => start them and stay at NUTRAL for 200ms
 				car_state = NUTRAL;
@@ -380,7 +390,8 @@ while(1){
 			}
 	break;
 	case IGNITION_TO_DRIVE:
-		if((HAL_GPIO_ReadPin(ready_to_drive_button_GPIO_Port,ready_to_drive_button_Pin)==0) && brak_flag ){ // Check if Ready2Drive && brake pedal are pressed
+		// NOTE!!!!!!! - Avishai - changed the pin default to pulldown FOR MODEL TABLE, FOR VEHICLE ITS PULL UP
+		if((HAL_GPIO_ReadPin(ready_to_drive_button_GPIO_Port,ready_to_drive_button_Pin)==1) && brak_flag ){ // Check if Ready2Drive && brake pedal are pressed
 			if ((HAL_GetTick() - tickstart) > 3000U){                           // If Ready2Drive && brake pedal are pressed for 3s => move to BUZZER state
 				car_state = BUZZER;
 				tickstart = HAL_GetTick();                                   // Start a timer for the BUZZER state

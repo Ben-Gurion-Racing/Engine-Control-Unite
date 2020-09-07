@@ -97,9 +97,13 @@ uint16_t apps0;
 uint16_t apps1;
 uint16_t brakeSign;
 uint32_t val;
+uint32_t output;
 uint32_t output0;
+uint32_t output1;
 double apps0_max = APPS_0_MAX_VAL;
 double apps0_min = APPS_0_MIN_VAL;
+double apps1_max = APPS_1_MAX_VAL;
+double apps1_min = APPS_1_MIN_VAL;
 double scale = OUTPUT_SCALE;
 
 //===================== TIME ===========================
@@ -308,13 +312,34 @@ void CAN1_RX0_IRQHandler(void)
 					Keep_420[1] = 0x00;
 					//val = ( (0xFF00 & ( CAN_1_RecData[1] << 8 )) | (0x00FF & (CAN_1_RecData[0] ) ) ) ;
 					output0=( (apps0-apps0_min) / (apps0_max-apps0_min) ) * scale;
+					output1=100-( (apps1-apps1_min) / (apps1_max-apps1_min) ) * scale;
 					if(output0 > 100) output0 = 100;
 					else if (output0 < 0) output0 = 0;
+					if(output1 > 100) output1 = 100;
+					else if (output1 < 0) output1 = 0;
 					//output = output && 0x00FF;
 					brak_flag = 0;
 					if( CAN_1_RecData[6] == 0x01 ){  // break
 						output0 = 0;
 						brak_flag = 1;
+					}
+
+					if ((apps0>0x3900)||(apps1>0x3900)) // 0x4000 equals 5V which is Vdd => short circuit to power supply
+						OpenShutDownError();
+					if ((apps0<0x200)||(apps1<0x200)) // 0x0000 equals 0V => short circuit to ground or open circuit, we took 0x200 for lower threshold
+						OpenShutDownError();
+					if(((output0-output1)>10)||((output1-output0)>10))		//T11.8.9 : Implausibility is defined as a deviation of more than 10% points pedal travel between any of the used APPSs
+					{
+						PlausibilityWatchDog++;                 // Counting 90ms for plausibility error T !!.8.8
+						if (PlausibilityWatchDog>=18)           // If 90ms elapsed => cut power to motor until the Implausibility is corrected
+							output = 0;
+							else								// else, keep motor output until 90ms elapses
+							output = output0;
+					}
+					else										// If there is not implausibility error => send output to motors
+					{
+						output = output0;
+						PlausibilityWatchDog=0;                 // Reset the implausibility watch dog
 					}
 
 					// From last code - Also there are other changes at the last code from line 255 to 347 at the 421 case with avishi changes
@@ -363,8 +388,8 @@ void CAN1_RX0_IRQHandler(void)
 					//if state is DRIVE then send command upcb2
 					//send_TC( upcb  , destIPAddr , 5001 , output0 );
 					if(car_state == DRIVE ){                                    // If the car is in DRIVE state => Send power output to motors
-						send_msg_to_dest2(output0);                             // Send the output value from pedals to the left motor
-						send_msg_to_dest(output0);								// Send the output value from pedals to the right motor
+						send_msg_to_dest2(output);                             // Send the output value from pedals to the left motor
+						send_msg_to_dest(output);								// Send the output value from pedals to the right motor
 						//send_msg_to_dest2_temp( output0);
 					}
 				}

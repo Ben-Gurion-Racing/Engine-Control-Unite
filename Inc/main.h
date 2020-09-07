@@ -125,10 +125,10 @@ void Error_Handler(void);
 #define TABLE_MODEL 1
 #if TABLE_MODEL
 //APPS values for table model
-#define APPS_0_MAX_VAL 3787
-#define APPS_0_MIN_VAL 3216
-#define APPS_1_MAX_VAL 1741
-#define APPS_1_MIN_VAL 19
+#define APPS_0_MAX_VAL 2700
+#define APPS_0_MIN_VAL 1500
+#define APPS_1_MAX_VAL 900
+#define APPS_1_MIN_VAL 300
 #define APPS_2_MAX_VAL 0xFFFF
 #define APPS_2_MIN_VAL 0xFFFF
 #endif

@@ -598,7 +598,7 @@ err_t AskDelayWatchDogR( void ){
     	  data[1] = 'I';
     	  data[2] = '[';
     	  data[3] = '2';
-   	  data[4] = ']';
+    	  data[4] = ']';
     	  data[5] = '\r';
         p = pbuf_alloc(PBUF_TRANSPORT,6, PBUF_POOL); // Some kind of memory allocation for the pbuf
         pbuf_dechain(p);
