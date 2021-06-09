@@ -28,19 +28,16 @@
 /* USER CODE BEGIN 0 */
 #include "lwip/udp.h"
 #include  <math.h>
+
+// Reference:
+// https://www.st.com/resource/en/user_manual/dm00103685-developing-applications-on-stm32cube-with-lwip-tcpip-stack-stmicroelectronics.pdf
+
 /* USER CODE END 0 */
-
-
-// LWIP Reference:
-// https://www.st.com/content/ccc/resource/technical/document/user_manual/65/e8/20/db/16/36/45/f7/DM00103685.pdf/files/DM00103685.pdf/jcr:content/translations/en.DM00103685.pdf
-
-
 /* Private function prototypes -----------------------------------------------*/
 /* ETH Variables initialization ----------------------------------------------*/
 void Error_Handler(void);
 
 /* USER CODE BEGIN 1 */
-
 static struct udp_pcb* elmo_r;                     // A udp pcb(check reference) struct to communicate with ELMO right inverter and motor
 static struct udp_pcb* elmo_L;                     // A udp pcb struct to communicate with ELMO left inverter and motor
 
@@ -53,8 +50,9 @@ struct pbuf *pp;                                   // Packet buffer struct used 
 //==================== FLAG =========================
 extern volatile unsigned char motor_RIGHT ;
 extern volatile unsigned char motor_LEFT ;
+extern volatile unsigned char UI2_R;
+extern volatile unsigned char UI2_L;
 extern volatile int car_volt; // not sure - didn't see it at other parts of the code
-
 extern int RPM_r ;
 extern int RPM_L ;
 extern double motor_temp_r;
@@ -72,7 +70,6 @@ uint8_t GATEWAY_ADDRESS[4];
 
 /* USER CODE BEGIN 2 */
 
-
 // Creates a substring at the length of 'l' from a given string and the 'p' place.
 void substring(char s[], char sub[], int p, int l) {
    int c = 0;
@@ -82,7 +79,6 @@ void substring(char s[], char sub[], int p, int l) {
    }
    sub[c] = '\0';
 }
-
 
 // This function receives data from the left ELMO and copies it to the ECU global variables
 void udp_receive_callback_L(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port){
@@ -99,8 +95,12 @@ static char buffer[20];                                         // This buffer h
     	    	  	  	  motor_LEFT = buffer[3] - 48;          // Motor_LEFT received 0 or 1
     	    	  	  	  printf("\r mototr left = %d \n",motor_LEFT);
     	          	  }
+    	      else if (buffer[0] == 'U' && buffer[1] == 'I' && buffer[2] == '[' && buffer[3] == '1' && buffer[4] == ']' && buffer[5] == '\r') // If the data received is an "UI[2]", Watchdog delay register
+    	          	          	          	  {
+    	          	    	  	  	  	  	  	  UI2_L =  buffer[6] - 48;        // Register value
+    	          	          	    	  	  	  printf("\r UI2_R = %d \n",UI2_L);
+    	          	          	          	  }
               // If the data received is the RPM for the left motor from the buffer string
-
     	      if(p->len > 5 && buffer[0] == 'F' && buffer[1] == 'V' && buffer[2] == '[' && buffer[3] == '1' && buffer[4] == ']')
 					  {
 						  int size = 0;
@@ -108,7 +108,6 @@ static char buffer[20];                                         // This buffer h
 						  RPM_L = 0;
 						  //buff[0] = *(p->payload+3);
 						  for(int i=0;i<10;i++){                // This loop find the size of the data at the buffer string
-
 							  if(buffer[6+i] == ';')
 								  break;
 							   size++;
@@ -117,10 +116,6 @@ static char buffer[20];                                         // This buffer h
 						  RPM_L = atoi(num_temp);               // The RPM for the left motors is the data from the "num_temp" array converted to int
 					  }//if
     	  }
-
-        /* copy data to pbuf */
-        /* send udp data */
-
         /* free pbuf */
         pbuf_free(p);
       }
@@ -140,8 +135,13 @@ char num_temp[10];        // Why it wasn't defined at the left func?
     	          	  {
     	          		  //buff[0] = *(p->payload+3);
     	    	  	  	  motor_RIGHT =  buffer[3] - 48;        // Motor_RIGHT received 0 or 1
-    	    	  	  	  printf("\r mototr right = %d \n",motor_LEFT);  //Mistake here!// //Mistake here!// //Mistake here!//
+    	    	  	  	  printf("\r motor right = %d \n",motor_LEFT);  //Mistake here!// //Mistake here!// //Mistake here!//
     	          	  }
+    	      else if (buffer[0] == 'U' && buffer[1] == 'I' && buffer[2] == '[' && buffer[3] == '1' && buffer[4] == ']' && buffer[5] == '\r') // If the data received is an "UI[2]", Watchdog delay register
+    	          	          	  {
+    	    	  	  	  	  	  	  UI2_R =  buffer[6] - 48;        // Register value
+    	          	    	  	  	  printf("\r UI2_R = %d \n",UI2_R);
+    	          	          	  }
     	      else  // This else didn't appear at the last function
                   // If the data received is the RPM for the right motor from the buffer string
     	    	  if(p->len > 5 && buffer[0] == 'F' && buffer[1] == 'V' && buffer[2] == '[' && buffer[3] == '1' && buffer[4] == ']')
@@ -173,11 +173,9 @@ char num_temp[10];        // Why it wasn't defined at the left func?
     	      		  	  	  motor_temp_r = atof(num_temp);
     	      	  	  	  }//if
     	  }
-
         pbuf_free(p);
       }
 }
-
 
 // This function creates UDP(check reference) struct to communicate with ELMO right inverter and motor
 // A socket is one end-point of a two-way communication link between two programs running on the network
@@ -246,14 +244,12 @@ err_t send_msg_to_dest2(char in ){
     //char ans[2];
    // int_to_char(ans,in);
       // Defines the data array to hold "TC=**\r"
-
 	  data[0] = 'T';
 	  data[1] = 'C';
 	  data[2] = '=';
 	  data[3] = in/10 + 48;
 	  data[4] = in%10 + 48;
 	  data[5] = '\r';
-  
     /* allocate pbuf from pool*/
     p = pbuf_alloc(PBUF_TRANSPORT,6, PBUF_POOL);	 // Some kind of memory allocation for the pbuf
     pbuf_dechain(p);
@@ -270,7 +266,6 @@ err_t send_msg_to_dest2(char in ){
 
 
 err_t send_msg_to_dest2_temp(char in ){	// !!! not sure how this function is different from the last one !!!
-
     struct pbuf *p;
 	uint8_t data[6]={0};
 
@@ -338,13 +333,11 @@ err_t Start_Motor_1( void ){
         struct pbuf *p;								 // Defines pbuf
     	uint8_t data[5]={0};						 // Defines an unsigned 8bit data array with zeros
     	// Defines the data array to hold "MC=1\r"
-
     	  data[0] = 'M';
     	  data[1] = 'O';
     	  data[2] = '=';
     	  data[3] = '1';
     	  data[4] = '\r';
-
         p = pbuf_alloc(PBUF_TRANSPORT,5, PBUF_POOL); // Some kind of memory allocation for the pbuf
         pbuf_dechain(p);
         if (p != NULL)								 // If everything is fine - send data using the pbuf
@@ -354,9 +347,8 @@ err_t Start_Motor_1( void ){
             pbuf_free(p);							 // Free pbuf
             return ERR_OK;							 // End func if everything was fine
         }
-    printf("error allocate the pbuf\n"); // Else, there was an error with the pbuf
-    return ERR_MEM;									 
-    
+    return ERR_MEM;									 // Else, there was an error with the pbuf
+    printf("error allocate the pbuf\n");
 }
 
 /**
@@ -381,10 +373,8 @@ err_t ASK_Motor_1( void ){
             pbuf_free(p);                            // Free pbuf
             return ERR_OK;                           // End func if everything was fine
         }
-  printf("error allocate the pbuf\n");  
-  return ERR_MEM;                                  // Else, return an error
-
-    
+    return ERR_MEM;                                  // Else, return an error
+    printf("error allocate the pbuf\n");
 }
 
 /**
@@ -413,20 +403,119 @@ err_t ASK_Motor_2( void ){
     printf("error allocate the pbuf\n");
 }
 
+// This function request the value of UI[2] of the Elmo to check is there was a delay in the messages
+err_t AskDelayWatchDogR( void ){
+        struct pbuf *p;                 		     // Defines a packet buffer struct - pbuf(look up at "open declaration")
+    	uint8_t data[6]={0};              			 // Defines an unsigned 8bit data array with zeros
+          // This data definition is sent to the ELMO for "UI[2]" register value - check ELMO command reference
+    	  data[0] = 'U';
+    	  data[1] = 'I';
+    	  data[2] = '[';
+    	  data[3] = '2';
+    	  data[4] = ']';
+    	  data[5] = '\r';
+        p = pbuf_alloc(PBUF_TRANSPORT,6, PBUF_POOL); // Some kind of memory allocation for the pbuf
+        pbuf_dechain(p);
+        if (p != NULL)                               // If everything is fine - send data using the pbuf
+        {
+            pbuf_take(p, (char*)data, 6);            // Copy data to pbuf from the data array
+            udp_send(elmo_r, p);                     // Send udp data to the ELMO
+            pbuf_free(p);                            // Free pbuf
+            return ERR_OK;                           // End func if everything was fine
+        }
+    return ERR_MEM;                                  // Else, return an error
+    printf("error allocate the pbuf\n");
+}
+
+// This function request the value of UI[2] of the Elmo to check is there was a delay in the messages
+err_t AskDelayWatchDogL( void ){
+        struct pbuf *p;                   			 // Defines a packet buffer struct - pbuf(look up at "open declaration")
+    	uint8_t data[6]={0};             		     // Defines an unsigned 8bit data array with zeros
+    	// This data definition is sent to the ELMO for "UI[2]" register value - check ELMO command reference
+    	     data[0] = 'U';
+    	     data[1] = 'I';
+    	     data[2] = '[';
+    	     data[3] = '2';
+    	     data[4] = ']';
+    	     data[5] = '\r';
+        p = pbuf_alloc(PBUF_TRANSPORT,6, PBUF_POOL); // Some kind of memory allocation for the pbuf
+        pbuf_dechain(p);
+        if (p != NULL)                               // If everything is fine - send data using the pbuf
+        {
+            pbuf_take(p, (char*)data, 6);            // Copy data to pbuf from the data array
+            udp_send(elmo_L, p);					 // Send udp data to the ELMO
+            pbuf_free(p);                            // Free pbuf
+            return ERR_OK;                           // End func if everything was fine
+        }
+    return ERR_MEM;                                  // Else, return an error
+    printf("error allocate the pbuf\n");
+}
+
+// This function resets the ui[1] register at Elmo right, which is a flag for loss of connection of the ECU and the Elmo, after 500ms the Elmo sends torque 0 tu the motor
+err_t ResetElmoRFlag( void ){
+	 struct pbuf *p;                   			 // Defines a packet buffer struct - pbuf(look up at "open declaration")
+	 uint8_t data[8]={0};             		     // Defines an unsigned 8bit data array with zeros
+	 // This data definition is sent to the ELMO for reseting the "UI[1]" register value - check ELMO command reference
+	 	 data[0] = 'U';
+	 	 data[1] = 'I';
+	 	 data[2] = '[';
+	 	 data[3] = '1';
+	 	 data[4] = ']';
+	 	 data[5] = '=';
+	 	 data[6] = '0';
+	 	 data[7] = '\r';
+	 p = pbuf_alloc(PBUF_TRANSPORT,8, PBUF_POOL); // Some kind of memory allocation for the pbuf
+	 pbuf_dechain(p);
+	 if (p != NULL)                              // If everything is fine - send data using the pbuf
+	 {
+	      pbuf_take(p, (char*)data, 8);          // Copy data to pbuf from the data array
+	      udp_send(elmo_r, p);					 // Send udp data to the ELMO
+	      pbuf_free(p);                          // Free pbuf
+	      return ERR_OK;                         // End func if everything was fine
+	 }
+	 return ERR_MEM;                             // Else, return an error
+	 printf("error allocate the pbuf\n");
+}
+
+// This function resets the ui[1] register at Elmo right, which is a flag for loss of connection of the ECU and the Elmo, after 500ms the Elmo sends torque 0 tu the motor
+err_t ResetElmoLFlag( void ){
+	struct pbuf *p;                   			 // Defines a packet buffer struct - pbuf(look up at "open declaration")
+	uint8_t data[8]={0};             		     // Defines an unsigned 8bit data array with zeros
+	 // This data definition is sent to the ELMO for reseting the "UI[1]" register value - check ELMO command reference
+		data[0] = 'U';
+		data[1] = 'I';
+		data[2] = '[';
+		data[3] = '1';
+		data[4] = ']';
+		data[5] = '=';
+		data[6] = '0';
+		data[7] = '\r';
+	p = pbuf_alloc(PBUF_TRANSPORT,8, PBUF_POOL); // Some kind of memory allocation for the pbuf
+	pbuf_dechain(p);
+	if (p != NULL)                               // If everything is fine - send data using the pbuf
+	{
+	      pbuf_take(p, (char*)data, 8);          // Copy data to pbuf from the data array
+		  udp_send(elmo_r, p);					 // Send udp data to the ELMO
+		  pbuf_free(p);                          // Free pbuf
+		  return ERR_OK;                         // End func if everything was fine
+	}
+	return ERR_MEM;                              // Else, return an error
+	printf("error allocate the pbuf\n");
+}
+
+
 // This function sends a request for the current RPM of motor right
 err_t ASK_Motor_RPM_r( void ){
         struct pbuf *p;								 // Defines a packet buffer struct - pbuf(look up at "open declaration")
     	uint8_t data[6]={0};					     // Defines an unsigned 8bit data array with zeros
     	int len = 6;
     	// This data definition is sent to the ELMO for "FV[1]" request(socket 1 velocity request - check ELMO command reference)
-  
     	  data[0] = 'F';
     	  data[1] = 'V';
     	  data[2] = '[';
     	  data[3] = '1';
     	  data[4] = ']';
     	  data[5] = '\r';
-  
         p = pbuf_alloc(PBUF_TRANSPORT,len, PBUF_POOL); // Some kind of memory allocation for the pbuf
         // pbuf dechain is missing here !!
         if (p != NULL)								 // If everything is fine - send data using the pbuf
@@ -454,7 +543,6 @@ err_t Watchdog_mes_r( void ){
     	  data[5] = '=';
     	  data[6] = '7';
     	  data[7] = '\r';
-
         p = pbuf_alloc(PBUF_TRANSPORT,len, PBUF_POOL); // Some kind of memory allocation for the pbuf
         if (p != NULL)
         {
@@ -473,7 +561,6 @@ err_t Watchdog_mes_L( void ){
     	uint8_t data[8]={0};						 // Defines an unsigned 8bit data array with zeros
     	int len = 8;
     	// This data definition is sent to the ELMO for "MI[6]=7" - not sure what this means
-
     	  data[0] = 'M';
     	  data[1] = 'I';
     	  data[2] = '[';
@@ -482,7 +569,6 @@ err_t Watchdog_mes_L( void ){
     	  data[5] = '=';
     	  data[6] = '7';
     	  data[7] = '\r';
-
         p = pbuf_alloc(PBUF_TRANSPORT,len, PBUF_POOL); // Some kind of memory allocation for the pbuf
         // dechain missing here?
         if (p != NULL)								 // If everything is fine - send data using the pbuf
@@ -502,15 +588,12 @@ err_t ASK_Motor_RPM_L( void ){
     	uint8_t data[6]={0};						 // Defines an unsigned 8bit data array with zeros
     	int len = 6;
     	// This data definition is sent to the ELMO for "FV[1]" request(socket 1 velocity request - check ELMO command reference)
-
     	  data[0] = 'F';
     	  data[1] = 'V';
     	  data[2] = '[';
     	  data[3] = '1';
     	  data[4] = ']';
     	  data[5] = '\r';
-
-        /* allocate pbuf from pool*/
         p = pbuf_alloc(PBUF_TRANSPORT,len, PBUF_POOL); // Some kind of memory allocation for the pbuf
         // dechain missing here?
         if (p != NULL)								 // If everything is fine - send data using the pbuf
@@ -531,14 +614,12 @@ err_t ASK_Motor_temp_R( void ){
     	int len = 6;
     	// Suppose to get motor temp, according to ELMO command reference AN[1] gets analog input 1(not sure what this means)
     	// There is another command for temperature - which is TI[] - not sure why it's not used
-
     	  data[0] = 'A';
     	  data[1] = 'N';
     	  data[2] = '[';
     	  data[3] = '1';
     	  data[4] = ']';
     	  data[5] = '\r';
-
         p = pbuf_alloc(PBUF_TRANSPORT,len, PBUF_POOL); // Some kind of memory allocation for the pbuf
         // dechain missing here?
         if (p != NULL)								 // If everything is fine - send data using the pbuf
@@ -558,15 +639,12 @@ err_t ASK_Motor_volt( void ){
         int len = 6;								 // Defines an unsigned 8bit data array with zeros
     	uint8_t data[6]={0};
     	// This data definition is sent to the ELMO for "AN[6]" request(actual voltage supplied - check ELMO command reference)
-
     	  data[0] = 'A';
     	  data[1] = 'N';
     	  data[1] = '[';
     	  data[1] = '6';
     	  data[1] = ']';
     	  data[2] = '\r';
-
-         /* allocate pbuf from pool*/
         p = pbuf_alloc(PBUF_TRANSPORT,6, PBUF_POOL); // Some kind of memory allocation for the pbuf
         pbuf_dechain(p);
         if (p != NULL)								 // If everything is fine - send data using the pbuf
@@ -585,14 +663,11 @@ err_t Start_Motor_2( void ){
         struct pbuf *p;								 // Defines a packet buffer struct - pbuf(look up at "open declaration")
     	uint8_t data[5]={0};						 // Defines an unsigned 8bit data array with zeros
     	// Defines the data array to hold "MC=1\r"
-
     	  data[0] = 'M';
     	  data[1] = 'O';
     	  data[2] = '=';
     	  data[3] = '1';
     	  data[4] = '\r';
-
-        /* allocate pbuf from pool*/
         p = pbuf_alloc(PBUF_TRANSPORT,5, PBUF_POOL); // Some kind of memory allocation for the pbuf
         pbuf_dechain(p);
         if (p != NULL)								 // If everything is fine - send data using the pbuf
@@ -602,12 +677,10 @@ err_t Start_Motor_2( void ){
             pbuf_free(p);							 // Free pbuf
             return ERR_OK;							 // End func if everything was fine
         }
-       
-    printf("error allocate the pbuf\n");
+        return ERR_OK; // I think this isn't suppoed to be here
     return ERR_MEM;									 // Else, return an error
-    
+    printf("error allocate the pbuf\n");
 }
-
 
 /* USER CODE END 2 */
 
@@ -661,13 +734,13 @@ void MX_LWIP_Init(void)
   create_udp_socket2();
   create_udp_socket();
   printf("\rcreate udp socket\n");
-}
+
 
 
 
 
 /* USER CODE END 3 */
-
+}
 
 #ifdef USE_OBSOLETE_USER_CODE_SECTION_4
 /* Kept to help code migration. (See new 4_1, 4_2... sections) */

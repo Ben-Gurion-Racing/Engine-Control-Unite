@@ -118,7 +118,7 @@ void Error_Handler(void);
 #define IGNITION_TO_DRIVE 	2
 #define BUZZER				3
 #define DRIVE 				4
-#define ERROR_state			5
+#define SAFE_STATE			5
 
 //=================== APPS VALIDATION =======================
 
@@ -127,8 +127,8 @@ void Error_Handler(void);
 #define APPS_0_MIN		709
 #define APPS_0_MAX		2300
 
-#define APPS_1_MIN		0
-#define APPS_1_MAX		0xFFFF
+#define APPS_1_MIN		0										// Need to measure the true values
+#define APPS_1_MAX		0xFFFF									// Need to measure the true values
 
 #define APPS_2_MIN		0
 #define APPS_2_MAX		0
@@ -137,10 +137,13 @@ void Error_Handler(void);
 
 
 //=========== GLOBAL ERRORS =============
-#define ERROR_APPS              0xFFFF
-#define ERROR_APPS_MAXVALUE		0xDFFF
-#define ERROR_BPPS              0xFF
-#define ERROR_APPS_BPPS_TIMEOUT 0xFF
+#define ERROR_APPS             			0xFFFF
+#define ERROR_APPS_MAXVALUE				0xDFFF
+#define ERROR_BPPS          		    0xFF
+#define ERROR_APPS_BPPS_TIMEOUT 		0xFF
+//#define ERROR_SHRT_CIRC_TO_GRND	 		0x0050
+#define ERROR_OpenSHTDWN			 	1						// Defines an error that open shutdown circuit at Safe State
+#define ERROR_DontSHTDWN			 	2						// Defines an error the doesn't open shutdown circuit at Safe State
 
 
 
